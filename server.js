@@ -2,6 +2,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@libsql/client');
 
 // Load environment variables from .env if present (dependency-free)
 try {
@@ -19,6 +20,12 @@ try {
 
 const TURSO_URL = 'https://mulliganmarket-mrmulligan.aws-us-west-2.turso.io';
 const TURSO_TOKEN = process.env.TURSO_TOKEN;
+
+// Native libSQL protocol (WebSocket, keep-alive) — lower latency than REST /v2/pipeline
+const libsqlClient = createClient({
+    url: TURSO_URL.replace(/^https:\/\//, 'libsql://'),
+    authToken: TURSO_TOKEN
+});
 
 const PAYPAL_CLIENT_ID = 'YOUR_PAYPAL_CLIENT_ID';
 const PAYPAL_CLIENT_SECRET = 'YOUR_PAYPAL_CLIENT_SECRET';
@@ -120,18 +127,64 @@ const server = http.createServer((req, res) => {
     const STORE_ITEM_TTL = 10000;
     const STORE_REVIEWS_TTL = 10000;
 
+    function withTimeout(promise, ms) {
+        return new Promise((resolve, reject) => {
+            const t = setTimeout(() => reject(new Error('libsql timeout')), ms);
+            promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+        });
+    }
+
     async function tursoPipeline(statements) {
+        try {
+            const results = await withTimeout(
+                libsqlClient.batch(
+                    statements.map(s => ({ sql: s.sql, args: toLibsqlArgs(s.args) })),
+                    'read'
+                ),
+                15000
+            );
+            return results.map(r => r.rows.map(row => normalizeLibsqlRow(row, r.columns)));
+        } catch (e) {
+            console.warn('libsql batch failed, falling back to REST:', e.message);
+            return await tursoPipelineRest(statements);
+        }
+    }
+
+    function toLibsqlArgs(args) {
+        return (args || []).map(a => {
+            if (a && typeof a === 'object' && a.type && ('value' in a)) {
+                return a.type === 'integer' ? parseInt(a.value, 10) : a.value;
+            }
+            return a;
+        });
+    }
+
+    function normalizeLibsqlRow(row, columns) {
+        const obj = {};
+        columns.forEach((col, i) => {
+            let v = row[i];
+            if (v === null || v === undefined) { obj[col] = null; return; }
+            if (typeof v === 'string') {
+                try { obj[col] = JSON.parse(v); } catch (e) { obj[col] = v; }
+            } else {
+                obj[col] = v;
+            }
+        });
+        return obj;
+    }
+
+    async function tursoPipelineRest(statements) {
         const body = {
             requests: statements.map(s => ({
                 type: 'execute',
                 stmt: {
                     sql: s.sql,
-            args: (s.args || []).map(a => {
-                if (a && typeof a === 'object' && a.type && ('value' in a)) return a;
-                if (a === null || a === undefined) return { type: 'null', value: '' };
-                if (typeof a === 'number') return { type: 'float', value: a };
-                return { type: 'text', value: String(a) };
-            })
+                    args: (s.args || []).map(a => {
+                        if (a && typeof a === 'object' && a.type && ('value' in a)) return a;
+                        if (a === null || a === undefined) return { type: 'null', value: '' };
+                        if (typeof a === 'number') return { type: 'float', value: a };
+                        return { type: 'text', value: String(a) };
+                    })
                 }
             }))
         };
@@ -255,6 +308,23 @@ const server = http.createServer((req, res) => {
             { sql: "SELECT item_number, title, price, cost, date_sold FROM items WHERE status='Sold' ORDER BY date_sold DESC LIMIT 10" }
         ]);
         return { mainStats: r[0], revenueStats: r[1], expenseStats: r[2], categoryStats: r[3], statusStats: r[4], recentSales: r[5] };
+    }
+
+    async function buildInventory() {
+        const r = await tursoPipeline([{ sql: "SELECT item_number, sku, title, category, condition, status, cost, price, quantity, date_listed, date_sold FROM items ORDER BY date_listed DESC" }]);
+        return { items: r[0] };
+    }
+    async function buildOrders() {
+        const r = await tursoPipeline([{ sql: "SELECT orders.*, items.date_sold FROM orders LEFT JOIN items ON orders.item_number = items.item_number ORDER BY orders.id DESC" }]);
+        return { orders: r[0] };
+    }
+    async function buildExpenses() {
+        const r = await tursoPipeline([{ sql: "SELECT e.*, i.sku as item_sku FROM expenses e LEFT JOIN items i ON e.item_number = i.item_number ORDER BY expense_date DESC" }]);
+        return { expenses: r[0] };
+    }
+    async function buildReviews() {
+        const r = await tursoPipeline([{ sql: "SELECT * FROM reviews ORDER BY created_at DESC" }]);
+        return { reviews: r[0] };
     }
 
     if (req.method === 'GET' && req.url.startsWith('/api/dashboard')) {
