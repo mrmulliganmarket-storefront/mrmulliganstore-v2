@@ -1,0 +1,31 @@
+/* Mulligan Market - Store Front Styles */
+.container { max-width: 1200px; }
+
+.aspect-square { aspect-ratio: 1 / 1; }
+.aspect-video { aspect-ratio: 16 / 9; }
+
+.prose {
+    line-height: 1.6;
+}
+
+.btn-primary {
+    background-color: #dc2626;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+.btn-primary:hover {
+    background-color: #b91c1c;
+}
+
+/* Item card hover effect */
+.cursor-pointer {
+    cursor: pointer;
+}
+.cursor-pointer:hover {
+    transform: translateY(-2px);
+}
+
+/* Modal animation */
