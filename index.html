@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mulligan Market | Premium Storefront v7.6.2</title>
+    <title>Mulligan Market | Premium Storefront v7.10.4</title>
     <meta name="description" content="Tour-level golf equipment at resale prices. Professionally sourced, verified clubs, apparel, and accessories. Every item inspected and certified.">
     <link rel="canonical" href="http://localhost:8080/">
     <meta name="theme-color" content="#0f172a">
@@ -53,7 +53,7 @@
             <h1 class="font-anton text-5xl">MULLIGAN<span class="text-red-600">MARKET</span></h1>
         </div>
     </header>
-    <span class="fixed top-4 right-6 z-50 text-red-600 font-bold text-sm">v7.7.1</span>
+    <span class="fixed top-4 right-6 z-50 text-red-600 font-bold text-sm">v7.10.4</span>
 
     <main>
         <section class="relative py-24 md:py-32 mb-8" style="background-image: url('Mulligan_Market_hero.png'); background-size: cover; background-position: center;" aria-label="Golf equipment showcase background image" role="img">
@@ -240,10 +240,12 @@
 
         async function fetchItems() {
             try {
-                const data = await fetchStore();
+                const res = await fetch('/api/inventory');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
                 return data.items || [];
             } catch (e) {
-                console.warn('Store items API failed, using legacy query:', e.message);
+                console.warn('Inventory API failed, using legacy query:', e.message);
                 return await legacyFetchItems();
             }
         }
@@ -254,7 +256,7 @@
                     {
                         type: 'execute',
                         stmt: {
-                            sql: "SELECT item_number, sku, title, category, condition, status, price, quantity FROM items WHERE status IN ('Listed', 'Sold') ORDER BY CASE WHEN status='Sold' THEN 1 ELSE 0 END, date_listed DESC",
+                            sql: "SELECT item_number, sku, title, category, condition, status, price, quantity FROM items WHERE status IN ('Listed', 'Sold') AND (status != 'Sold' OR date_sold >= datetime('now', '-10 days')) ORDER BY CASE WHEN status='Sold' THEN 1 ELSE 0 END, date_listed DESC",
                             args: []
                         }
                     }
@@ -532,9 +534,6 @@
 
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
-            } catch (e) {
-                console.error('Failed to load item details:', e);
-            }
         }
 
         async function legacyShowItem(itemNumber) {
@@ -617,7 +616,9 @@
 
         async function fetchReviews() {
             try {
-                const data = await fetchStore();
+                const res = await fetch('/api/store/reviews?page=1&limit=6');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
                 return data.reviews || [];
             } catch (e) {
                 console.warn('Store reviews API failed, using legacy query:', e.message);
@@ -627,11 +628,30 @@
 
         async function fetchReviewStats() {
             try {
-                const data = await fetchStore();
-                return data.reviewStats || { total: 0, avgRating: 0 };
+                const payload = {
+                    requests: [
+                        {
+                            type: 'execute',
+                            stmt: {
+                                sql: "SELECT COUNT(*) as total, COALESCE(AVG(rating),0) as avg_rating FROM reviews WHERE status = 'Approved'",
+                                args: []
+                            }
+                        }
+                    ]
+                };
+                const res = await fetch('/api/turso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!res.ok) return { total: 0, avgRating: 0 };
+                const data = await res.json();
+                const result = data.results?.[0]?.response?.result;
+                if (!result?.rows?.length) return { total: 0, avgRating: 0 };
+                const row = result.rows[0];
+                return {
+                    total: row[0]?.value || 0,
+                    avgRating: parseFloat(row[1]?.value || 0).toFixed(1)
+                };
             } catch (e) {
-                console.warn('Store review stats API failed, using legacy query:', e.message);
-                return await legacyFetchReviewStats();
+                console.warn('Review stats failed:', e.message);
+                return { total: 0, avgRating: 0 };
             }
         }
 
@@ -686,57 +706,6 @@
                 avgRating: parseFloat(row[1]?.value || 0).toFixed(1)
             };
         }
-                    }
-                ]
-            };
-            const res = await fetch('/api/turso', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) throw new Error('Fetch failed: ' + res.status);
-            const data = await res.json();
-            const result = data.results?.[0]?.response?.result;
-            if (!result?.rows?.length) return [];
-            return result.rows.map(row => {
-                const obj = {};
-                result.cols.forEach((col, i) => {
-                    const cell = row[i];
-                    if (!cell || cell.type === 'null') { obj[col.name] = null; return; }
-                    obj[col.name] = cell.value;
-                });
-                return obj;
-            });
-        }
-
-        async function fetchReviewStats() {
-            const payload = {
-                requests: [
-                    {
-                        type: 'execute',
-                        stmt: {
-                            sql: "SELECT COUNT(*) as total, COALESCE(AVG(rating),0) as avg_rating FROM reviews WHERE status = 'Approved'",
-                            args: []
-                        }
-                    }
-                ]
-            };
-            const res = await fetch('/api/turso', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) return { total: 0, avgRating: 0 };
-            const data = await res.json();
-            const result = data.results?.[0]?.response?.result;
-            if (!result?.rows?.length) return { total: 0, avgRating: 0 };
-            const row = result.rows[0];
-            return {
-                total: row[0]?.value || 0,
-                avgRating: parseFloat(row[1]?.value || 0).toFixed(1)
-            };
-        }
-
         function renderReviews(reviews) {
             const container = document.getElementById('reviews-container');
             if (!reviews || reviews.length === 0) {

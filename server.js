@@ -311,7 +311,7 @@ const server = http.createServer((req, res) => {
     }
 
     async function buildInventory() {
-        const r = await tursoPipeline([{ sql: "SELECT item_number, sku, title, category, condition, status, cost, price, quantity, date_listed, date_sold FROM items ORDER BY date_listed DESC" }]);
+        const r = await tursoPipeline([{ sql: "SELECT item_number, sku, title, category, condition, status, cost, price, quantity, date_listed, date_sold FROM items WHERE status IN ('Listed', 'Sold') AND (status != 'Sold' OR date_sold >= datetime('now', '-10 days')) ORDER BY CASE WHEN status='Sold' THEN 1 ELSE 0 END, date_listed DESC" }]);
         return { items: r[0] };
     }
     async function buildOrders() {
@@ -375,7 +375,7 @@ const server = http.createServer((req, res) => {
 
     async function buildStore() {
         const r = await tursoPipeline([
-            { sql: "SELECT item_number, sku, title, category, condition, status, price, quantity FROM items WHERE status IN ('Listed', 'Sold') ORDER BY CASE WHEN status='Sold' THEN 1 ELSE 0 END, date_listed DESC" },
+            { sql: "SELECT item_number, sku, title, category, condition, status, price, quantity FROM items WHERE status IN ('Listed', 'Sold') AND (status != 'Sold' OR date_sold >= datetime('now', '-10 days')) ORDER BY CASE WHEN status='Sold' THEN 1 ELSE 0 END, date_listed DESC" },
             { sql: "SELECT review_id, item_number, customer_name, rating, comment, platform, status, created_at FROM reviews WHERE status = 'Approved' ORDER BY created_at DESC LIMIT 6" },
             { sql: "SELECT COUNT(*) as total, COALESCE(AVG(rating),0) as avg_rating FROM reviews WHERE status = 'Approved'" }
         ]);
