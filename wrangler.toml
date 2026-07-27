@@ -1,0 +1,46 @@
+name = "mulligan-market"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Restrict CORS + security headers to your real domain(s).
+# Comma-separated list of allowed browser origins (no trailing slash).
+# Leave unset only for local dev; SET THIS in production to avoid wildcard CORS.
+#   wrangler secret put ORIGIN   # value: https://www.mulliganmarket.com,https://mulliganmarket.com
+# ORIGIN = "https://www.mulliganmarket.com,https://mulliganmarket.com"
+
+[vars]
+TURSO_URL = "https://mulliganmarket-mrmulligan.aws-us-west-2.turso.io"
+PAYPAL_API = "https://api-m.sandbox.paypal.com"
+# --- Email (Resend) — fill these in to turn on email sending ---
+# FROM_EMAIL must be an address on your VERIFIED domain in Resend.
+# Until FROM_EMAIL + RESEND_API_KEY are set, no emails are sent (nothing breaks).
+FROM_EMAIL = "Mulligan Market <noreply@mulliganmarket.com>"
+# NOTIFY_EMAIL = "youremail@example.com"   # where new contact messages + order copies are emailed to you
+
+[[routes]]
+pattern = "www.mulliganmarket.com/*"
+zone_name = "mulliganmarket.com"
+
+[[routes]]
+pattern = "mulliganmarket.com/*"
+zone_name = "mulliganmarket.com"
+
+# Set as secrets (never commit):
+#   wrangler secret put TURSO_TOKEN
+#   wrangler secret put PAYPAL_CLIENT_ID
+#   wrangler secret put PAYPAL_CLIENT_SECRET
+#   wrangler secret put ADMIN_USER
+#   wrangler secret put ADMIN_PASS
+#   wrangler secret put RESEND_API_KEY   # from https://resend.com/api-keys
+#   wrangler secret put ORIGIN           # e.g. https://www.mulliganmarket.com,https://mulliganmarket.com
+#
+# NOTE: ADMIN_TOKEN is no longer used — login now issues a random, expiring
+# session token (8h). Rotate ADMIN_PASS to a strong value if it was ever shared.

@@ -1,0 +1,2475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MULLIGAN MARKET — HQ Admin Panel</title>
+    <meta name="description" content="Admin dashboard for managing Mulligan Market inventory, vendors, orders, and analytics.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="http://localhost:8080/admin.html">
+    <meta name="theme-color" content="#0f172a">
+
+    <link rel="icon" href="MM_logo.jpg">
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: "Inter", sans-serif; font-size: 16px; }
+        .font-anton { font-family: "Poppins", sans-serif; letter-spacing: -0.01em; font-weight: 500; }
+        .leaflet-container { height: 300px; border-radius: 12px; }
+        .leaflet-marker-icon { cursor: pointer; }
+        .leaflet-popup-content { font-family: "Inter", sans-serif; }
+        .sidebar { width: 250px; background: #0f172a; color: #fff; position: fixed; top: 0; left: 0; bottom: 0; overflow-y: auto; z-index: 40; }
+        .main { margin-left: 250px; }
+        .main.hidden { display: none; }
+        .topbar { height: 64px; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 30; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: none; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: #fff; border-radius: 24px; width: 560px; max-width: 92vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
+        .modal.modal-wide { width: 820px; }
+        .toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 12px; border-left: 4px solid #dc2626; }
+        .login-overlay { position: fixed; inset: 0; background: #0f172a; z-index: 200; display: flex; align-items: center; justify-content: center; }
+        .login-overlay.hidden { display: none; }
+    </style>
+</head>
+<body><a href="https://www.mulliganmarket.com/cdn-cgi/content?id=ofArM99Uz_bAjs6.BzlPxG2Y_89C37O.3Nv9GQFk0iM-1784878037.384853-1.2.1.1-hzoeeMGMt7s7PVcxs74Zb83mjQMB.rAsGG6JYqNG7OM" aria-hidden="true" rel="nofollow noopener" style="display: none !important; visibility: hidden !important"></a>
+<div id="login-overlay" class="login-overlay">
+    <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4">
+        <h2 class="font-anton text-3xl mb-4 text-center">Admin Login</h2>
+        <form id="admin-login-form" onsubmit="return login(event)" class="space-y-4">
+            <div><label class="block text-xs font-bold text-gray-600 mb-1">Username</label><input id="admin-username" required class="w-full border rounded-xl p-2"></div>
+            <div><label class="block text-xs font-bold text-gray-600 mb-1">Password</label><input id="admin-password" type="password" required class="w-full border rounded-xl p-2"></div>
+            <button type="submit" class="w-full bg-red-600 text-white py-2 rounded-xl font-bold hover:bg-red-700">Login</button>
+        </form>
+        <p id="login-error" class="text-red-600 text-sm text-center mt-3 hidden">Invalid credentials</p>
+    </div>
+</div>
+
+<div class="flex min-h-screen">
+    <nav class="sidebar">
+    <div class="h-16 flex items-center justify-center border-b border-gray-800" style="background: #1e293b;">
+        <h1 class="font-italic text-2xl leading-none tracking-tight" style="font-family: 'Poppins', sans-serif; transform: skewX(-6deg);">MULLIGAN<span class="text-red-500">MARKET</span></h1>
+    </div>
+        <div class="p-3 flex flex-col gap-1">
+            <a href="#" onclick="showPage('dashboard')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Dashboard</a>
+            <a href="#" onclick="showPage('inventory')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Inventory</a>
+            <a href="#" onclick="showPage('orders')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Orders</a>
+            <a href="#" onclick="showPage('vendors')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Vendors</a>
+            <a href="#" onclick="showPage('expenses')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Expenses</a>
+            <a href="#" onclick="showPage('reviews')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Reviews <span id="review-badge" class="ml-1 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full hidden"></span></a>
+            <a href="#" onclick="showPage('messages')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Messages <span id="msg-badge" class="ml-1 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full hidden"></span></a>
+            <a href="#" onclick="showPage('visitors')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Visitors <span id="visitor-badge" class="ml-1 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full hidden"></span></a>
+            <a href="#" onclick="showPage('subscribers')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">Subscribers</a>
+            <a href="#" onclick="showPage('legend')" class="nav-link px-3 py-2 rounded hover:bg-gray-800 text-gray-300">SKU Legend</a>
+        </div>
+    </nav>
+    <div class="main flex-1 bg-gray-400 hidden">
+        <div class="topbar flex items-center justify-between px-6">
+            <div class="flex items-center gap-4">
+                <span class="font-bold">Admin Headquarters</span>
+                <span id="system-status" class="flex items-center gap-1 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-gray-400" id="status-dot"></span>
+                    <span class="text-gray-500" id="status-text">Checking...</span>
+                </span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="logout()" class="px-3 py-1 rounded bg-gray-700 text-white text-sm font-bold hover:bg-gray-600">Logout</button>
+                <a href="../index.html" class="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-700">Store</a>
+            </div>
+        </div>
+        <main id="content" class="p-6">
+            <div id="admin-loading" class="flex flex-col items-center justify-center py-20">
+                <div class="w-10 h-10 border-4 border-gray-300 border-t-red-600 rounded-full animate-spin"></div>
+                <p class="text-gray-500 font-bold mt-4">Loading Data</p>
+            </div>
+        </main>
+    </div>
+</div>
+<div id="modal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="border-radius: 24px; background: #f8f9fa; padding: 24px;">
+        <div id="modal-body"></div>
+    </div>
+</div>
+
+<script>
+const DB_URL = "/api/turso";
+
+function isAuthenticated() {
+    return localStorage.getItem('adminAuth') === 'true';
+}
+
+function showLogin() {
+    document.getElementById('login-overlay').classList.remove('hidden');
+    document.querySelector('.main').classList.add('hidden');
+}
+
+function hideLogin() {
+    document.getElementById('login-overlay').classList.add('hidden');
+    document.querySelector('.main').classList.remove('hidden');
+}
+
+function login(e) {
+    e.preventDefault();
+    const user = document.getElementById('admin-username').value;
+    const pass = document.getElementById('admin-password').value;
+    const errorEl = document.getElementById('login-error');
+    fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass })
+    }).then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+    }).then(function (res) {
+        if (res.ok && res.j && res.j.ok) {
+            localStorage.setItem('adminAuth', 'true');
+            localStorage.setItem('adminToken', res.j.token);
+            hideLogin();
+            refreshSkuBrands();
+            loadLegendFromDb();
+            loadMessageBadge();
+            loadReviewBadge();
+            loadVisitorBadge();
+            init();
+        } else {
+            errorEl.classList.remove('hidden');
+            setTimeout(function () { errorEl.classList.add('hidden'); }, 3000);
+        }
+    }).catch(function () {
+        errorEl.classList.remove('hidden');
+        setTimeout(function () { errorEl.classList.add('hidden'); }, 3000);
+    });
+    return false;
+}
+
+function logout() {
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+        fetch('/api/admin/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+        }).catch(function () {});
+    }
+    stopSessionHeartbeat();
+    resetInventoryState();
+    localStorage.removeItem('adminAuth');
+    localStorage.removeItem('adminToken');
+    location.reload();
+}
+
+// Non-blocking session keep-alive. The server already slides the expiry on each
+// authenticated admin call; this just refreshes it between idle gaps so long
+// editing sessions don't expire unexpectedly. Failures are ignored.
+function keepAliveSession() {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    fetch('/api/admin/extend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+    }).catch(function () {});
+}
+
+// Periodic heartbeat: keeps the session alive for as long as the admin tab is
+// open, even while you're filling out a form with no DB activity. This prevents
+// the "session ended" expiry that used to hit mid-edit.
+let sessionHeartbeat = null;
+function startSessionHeartbeat() {
+    stopSessionHeartbeat();
+    keepAliveSession();
+    sessionHeartbeat = setInterval(keepAliveSession, 4 * 60 * 1000); // every 4 minutes
+}
+function stopSessionHeartbeat() {
+    if (sessionHeartbeat) { clearInterval(sessionHeartbeat); sessionHeartbeat = null; }
+}
+
+function toast(msg) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 3000);
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); document.getElementById('modal').querySelector('.modal').classList.remove('modal-wide'); document.getElementById('modal-body').innerHTML = ''; }
+  function openModal(html) { const body = document.getElementById('modal-body'); body.innerHTML = html; const modal = document.getElementById('modal'); modal.classList.add('open'); const inner = modal.querySelector('.modal'); if (inner) inner.scrollTop = 0; }
+ 
+ // Sparkline SVG helper
+ function sparkline(data, color) {
+     if (!data || !data.length) return '';
+     const max = Math.max.apply(null, data.map(function(d) { return d.count || 0; }).concat([1]));
+     const points = data.map(function(d, i) { return (i * 30) + ',' + (12 - (d.count / max * 12)); }).join(' ');
+     return '<svg class="w-20 h-6" viewBox="0 0 120 12"><polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="2"/></svg>';
+ }
+ 
+ // Date formatting helper - MM/DD/YY format
+ function formatDate(dateStr) {
+    if (!dateStr) return '';
+    // Handle YYYY-MM-DD format by splitting to avoid timezone issues
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        const year = parts[0].slice(-2);
+        const month = parts[1];
+        const day = parts[2];
+        return month + '/' + day + '/' + year;
+    }
+    const d = new Date(dateStr);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+const day = String(d.getDate()).padStart(2, '0');
+     const year = String(d.getFullYear()).slice(-2);
+     return month + '/' + day + '/' + year;
+ }
+ 
+ async function dbQuery(sql, args=[], { timeout = 120000 } = {}) {
+     const controller = new AbortController();
+     const timer = setTimeout(function() { controller.abort(); }, timeout);
+     const body = {
+         requests: [{
+             type: 'execute',
+             stmt: {
+                 sql: sql,
+                 args: args.map(function(a) {
+                 if (a === null || a === undefined) return { type: 'null', value: '' };
+                 if (typeof a === 'number') return { type: 'float', value: a };
+                 return { type: 'text', value: String(a) };
+             })
+             }
+         }]
+     };
+     try {
+          const adminToken = localStorage.getItem('adminToken') || '';
+          const res = await fetch(DB_URL, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+adminToken}, body: JSON.stringify(body), signal: controller.signal });
+         clearTimeout(timer);
+          if (!res.ok) {
+              if (res.status === 401) {
+                  localStorage.removeItem('adminAuth');
+                  localStorage.removeItem('adminToken');
+                  toast('Session expired. Please log in again.');
+                  showLogin();
+                  throw new Error('Session expired');
+              }
+              const t = await res.text(); throw new Error('DB ' + res.status + ': ' + t);
+          }
+         const data = await res.json();
+          const r = data.results[0];
+          if (r.type === 'error') throw new Error(r.error.message);
+          const result = r.response.result;
+          if (!result || !result.rows) return [];
+          // Server slides the session expiry on every authenticated admin call,
+          // so active editing keeps you logged in. Fire a lightweight keep-alive
+          // in the background (no await) as an extra guard.
+          keepAliveSession();
+          return result.rows.map(function(row) {
+             const obj = {};
+             const cells = Array.isArray(row) ? row : (row.value || row);
+             result.cols.forEach(function(col, i) {
+                 const cell = cells[i];
+                 if (!cell || cell.type === 'null') { obj[col.name] = null; return; }
+                 try { obj[col.name] = JSON.parse(cell.value); } catch(e) { obj[col.name] = cell.value; }
+             });
+             return obj;
+         });
+     } catch (e) {
+         clearTimeout(timer);
+         if (e.name === 'AbortError') throw new Error('DB query timed out');
+         throw e;
+     }
+ }
+
+async function init() {
+    console.log('init() starting, auth=' + isAuthenticated());
+    try {
+        if (!isAuthenticated()) {
+            console.log('Not authenticated, showing login');
+            showLogin();
+            return;
+        }
+        console.log('Authenticated, loading dashboard');
+        hideLogin();
+        // Remove hidden class from main content when authenticated
+        document.querySelector('.main').classList.remove('hidden');
+        console.log('Main hidden class removed:', !document.querySelector('.main').classList.contains('hidden'));
+        loadLegendFromDb();
+        loadMessageBadge();
+        loadReviewBadge();
+        loadVisitorBadge();
+        try {
+            await dbQuery('SELECT 1', [], { timeout: 5000 });
+            console.log('DB ping OK');
+        } catch(e) {
+            console.warn('DB ping failed, continuing:', e.message);
+        }
+        startSessionHeartbeat();
+        console.log('calling showPage(dashboard)');
+        showPage('dashboard');
+    } catch(err) {
+        console.error('init() crashed:', err);
+    }
+}
+
+function showPage(page, filterStatus) {
+    document.querySelectorAll('.nav-link').forEach(function(a) { a.classList.toggle('bg-gray-800', a.textContent.trim().toLowerCase() === page); });
+    const c = document.getElementById('content');
+    const loading = document.getElementById('admin-loading');
+    if (loading) { loading.classList.remove('hidden'); loading.classList.add('flex'); }
+    (async function() {
+        try {
+            if (page === 'dashboard') await renderDashboard(c);
+            else if (page === 'inventory') await renderInventory(c);
+            else if (page === 'orders') await renderOrders(c);
+            else if (page === 'vendors') await renderVendors(c);
+            else if (page === 'expenses') await renderExpenses(c);
+            else if (page === 'reviews') await renderReviews(c, filterStatus || 'Approved');
+            else if (page === 'messages') await renderMessages(c);
+            else if (page === 'visitors') await renderVisitors(c);
+            else if (page === 'subscribers') await renderSubscribers(c);
+            else if (page === 'legend') await renderLegend(c);
+            else if (page === 'item-details') await renderItemDetails(c);
+        } catch(e) {
+            c.innerHTML = '<div class="text-center py-20 text-red-500"><p>Error: ' + escapeHtml(e.message) + '</p></div>';
+        } finally {
+            if (loading) { loading.classList.add('hidden'); loading.classList.remove('flex'); }
+        }
+    })();
+}
+
+function viewItemDetails(itemNumber) { window.currentItemNumber = itemNumber; }
+
+async function renderItemDetails(el) {
+    const itemNumber = window.currentItemNumber;
+    if (!itemNumber) { el.innerHTML = '<p class="text-gray-500">No item selected</p>'; return; }
+
+    let item = null;
+    try { item = (await dbQuery("SELECT * FROM items WHERE item_number = ?", [itemNumber]))[0]; } catch (e) { el.innerHTML = '<p class="text-red-500">Item query failed: ' + escapeHtml(e.message) + '</p>'; return; }
+    if (!item) { el.innerHTML = '<p class="text-gray-500">Item not found</p>'; return; }
+
+    let vendor = null;
+    try { vendor = item.vendor_id ? (await dbQuery("SELECT * FROM vendors WHERE vendor_id = ?", [item.vendor_id]))[0] : null; } catch (e) { console.warn('Vendor query failed', e); }
+
+    let orders = [];
+    try { orders = await dbQuery("SELECT * FROM orders WHERE item_number = ?", [itemNumber]); } catch (e) { console.warn('Orders query failed', e); }
+
+    let expenses = [];
+    try { expenses = await dbQuery("SELECT * FROM expenses WHERE item_number = ?", [itemNumber]); } catch (e) { console.warn('Expenses query failed', e); }
+
+    const photos = (function() {
+        if (!item.photos) return [];
+        if (Array.isArray(item.photos)) return item.photos;
+        try { return JSON.parse(item.photos); } catch(e) { return []; }
+    })();
+    const totalRevenue = orders.reduce(function(sum, o) { return sum + (o.total || 0); }, 0);
+    const totalExpenses = expenses.reduce(function(sum, e) { return sum + (e.amount || 0); }, 0);
+    const profit = totalRevenue - (item.cost || 0) - totalExpenses;
+    
+    const orderRows = orders.map(function(o) {
+        var orderData = typeof o.data === 'string' ? (function() { try { return JSON.parse(o.data); } catch(e) { return {}; } })() : (o.data || {});
+        return '<tr class="border-t"><td class="p-2 font-mono">#' + escapeHtml(o.id || '—') + '</td><td class="p-2">' + escapeHtml(orderData.customer_name || '—') + '</td><td class="p-2">$'+ parseFloat(o.total || 0).toFixed(2) + '</td><td class="p-2">' + escapeHtml(o.status) + '</td></tr>';
+    }).join('');
+    const expenseRows = expenses.map(function(e) {
+        return '<tr class="border-t"><td class="p-2">' + (e.type || '—') + '</td><td class="p-2">' + (e.description || '—') + '</td><td class="p-2">$'+ (e.amount || 0).toFixed(2) + '</td></tr>';
+    }).join('');
+    
+    const photoHtml = photos.length ? '<div class="flex flex-wrap gap-2 mb-3">' + photos.map(function(p) { return '<img src="/api/image?item=' + encodeURIComponent(itemNumber) + '" class="h-24 w-auto object-contain bg-gray-50 rounded border" />'; }).join('') + '</div>' : '';
+    
+    el.innerHTML = '<div class="mb-3"><button onclick="showPage(\'inventory\')" class="text-gray-500 hover:underline text-sm">&larr; Back to Inventory</button></div>' +
+        '<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">' +
+            '<div class="bg-gray-50 border-b border-gray-200 px-4 py-3">' +
+                '<h2 class="font-anton text-xl">Item: ' + itemNumber + '</h2>' +
+            '</div>' +
+            '<div class="p-4">' +
+                '<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">' +
+                    '<div class="space-y-3">' +
+                        '<div class="bg-gray-50 rounded-lg p-3">' +
+                            '<h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Details</h3>' +
+                            '<div class="space-y-1">' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Title</span><span class="font-bold text-xs">' + escapeHtml(item.title || '-') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">SKU</span><span class="font-mono text-xs">' + escapeHtml(item.sku || '-') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Category</span><span class="text-xs">' + escapeHtml(item.category || '-') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Condition</span><span class="text-xs">' + escapeHtml(item.condition || '-') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Status</span><span class="text-xs font-bold">' + escapeHtml(item.status || '-') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Stock</span><span class="text-xs">' + escapeHtml(item.quantity || 0) + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Size</span><span class="text-xs">' + escapeHtml(item.size || '—') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Source</span><span class="text-xs">' + escapeHtml(item.source || '—') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Tag #</span><span class="text-xs">' + escapeHtml(item.tag_number || '—') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Date Acquired</span><span class="text-xs">' + escapeHtml(item.date_acquired || '—') + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Vendor</span><span class="text-xs">' + (vendor && vendor.name ? vendor.name : '—') + '</span></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="bg-gray-50 rounded-lg p-3">' +
+                            '<h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Financials</h3>' +
+                            '<div class="space-y-1">' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Cost</span><span class="text-xs">$' + (item.cost || 0).toFixed(2) + '</span></div>' +
+                                '<div class="flex justify-between"><span class="text-gray-500 text-xs">Price</span><span class="font-bold text-red-600 text-xs">$' + (item.price || 0).toFixed(2) + '</span></div>' +
+                                '<div class="flex justify-between border-t border-gray-200 mt-1 pt-1"><span class="text-gray-700 text-xs font-bold">Profit</span><span class="font-bold text-green-600 text-xs">$' + profit.toFixed(2) + '</span></div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="lg:col-span-2 space-y-3">' +
+                        (photos.length ? '<div class="mb-3"><h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Photos</h3>' + photoHtml + '</div>' : '') +
+                        (item.description ? '<div class="mb-3"><h3 class="text-xs font-bold text-gray-500 uppercase mb-1">Description</h3><p class="text-gray-700 text-sm">' + item.description + '</p></div>' : '') +
+                        (orders.length ? '<div class="mb-3"><h3 class="text-xs font-bold text-gray-500 uppercase mb-1">Orders (' + orders.length + ')</h3><div class="overflow-x-auto"><table class="w-full text-sm bg-white rounded-lg border overflow-hidden"><thead class="bg-gray-50"><tr><th class="p-1.5 text-left text-xs">#</th><th class="p-1.5 text-left text-xs">Customer</th><th class="p-1.5 text-xs">Total</th><th class="p-1.5 text-xs">Status</th></tr></thead><tbody>' + orderRows + '</tbody></table></div></div>' : '') +
+                        (expenses.length ? '<div class="mb-3"><h3 class="text-xs font-bold text-gray-500 uppercase mb-1">Expenses (' + expenses.length + ')</h3><div class="overflow-x-auto"><table class="w-full text-sm bg-white rounded-lg border overflow-hidden"><thead class="bg-gray-50"><tr><th class="p-1.5 text-left text-xs">Type</th><th class="p-1.5 text-left text-xs">Description</th><th class="p-1.5 text-xs">Amount</th></tr></thead><tbody>' + expenseRows + '</tbody></table></div></div>' : '') +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+}
+
+async function renderDashboard(el) {
+    let data;
+    try {
+        const res = await fetch('/api/dashboard');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+    } catch (e) {
+        console.warn('Dashboard API failed, using legacy queries:', e.message);
+        data = await buildDashboardLegacy();
+    }
+    const { kpis = [], items = [], orders = [], soldItems = 0, monthlyProfit = 0, goal = { items: 0, profit: 0 }, lastMonthSold = 0, lastMonthProfit = 0, salesTrend = [], health = [], vendors = [], expenses30 = { total: 0, type: '—' }, alerts = [], topBrands = [], lifetime = { total_revenue: 0, total_cost: 0, total_fees: 0, total_expenses: 0, lifetime_profit: 0 }, lifetimeCategories = [] } = data;
+
+    const currentMonth = new Date().toISOString().slice(0,7);
+
+    // Calculate days_stale in JS since julianday might be slow
+    const now = new Date();
+    items.forEach(function(i) {
+        if (i.date_listed) {
+            const listed = new Date(i.date_listed);
+            i.days_stale = Math.floor((now - listed) / (1000 * 60 * 60 * 24));
+        } else {
+            i.days_stale = 0;
+        }
+    });
+    const recentItems = items.slice(0, 10);
+    
+    const sellThroughRate = kpis[0]?.active > 0 ? ((soldItems / kpis[0].active) * 100).toFixed(1) : 0;
+    const avgProfit = kpis[0]?.active > 0 ? (monthlyProfit / kpis[0].active).toFixed(2) : 0;
+    const sellTrend = soldItems > lastMonthSold ? 'up' : soldItems < lastMonthSold ? 'down' : 'flat';
+    const profitTrend = monthlyProfit > lastMonthProfit ? 'up' : monthlyProfit < lastMonthProfit ? 'down' : 'flat';
+    const expenseRatio = monthlyProfit > 0 ? ((expenses30.total / monthlyProfit) * 100).toFixed(1) : 0;
+    const avgMargin = kpis[0]?.avgMargin || 0;
+    const monthlyRoi = kpis[0]?.monthlyRoi || 0;
+    const ytdProfit = kpis[0]?.ytdProfit || 0;
+    const ytdItemProfit = parseFloat(kpis[0]?.ytdItemProfit || 0);
+    const ytdExpenses = parseFloat(kpis[0]?.ytdExpenses || 0);
+    const monthlyItemProfit = parseFloat(kpis[0]?.monthlyItemProfit || 0);
+    const monthlyExpenses = parseFloat(kpis[0]?.monthlyExpenses || 0);
+
+    const topBrandsItemsSold = topBrands.reduce(function(sum,b){return sum+(b.items_sold||0);},0);
+    const topBrandsRevenue = topBrands.reduce(function(sum,b){return sum+(parseFloat(b.revenue||b.profit||0));},0);
+    const topBrandsAvgRevenue = topBrands.length ? (topBrandsRevenue/topBrands.length) : 0;
+    const topBrandsMaxRevenue = Math.max.apply(Math, topBrands.map(function(b){return Math.max(0, parseFloat(b.revenue||b.profit||0));}).concat([1]));
+
+    const progressPercent = goal.items > 0 ? Math.min(100, (soldItems / goal.items) * 100) : soldItems > 0 ? 100 : 0;
+    const profitGoalPercent = goal.profit > 0 ? Math.min(100, (monthlyProfit / goal.profit) * 100) : monthlyProfit > 0 ? 100 : 0;
+
+el.innerHTML = '<div class="grid grid-cols-4 gap-4 mb-4">' +
+        '<div class="bg-white p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Total Inventory Value</div><div class="text-2xl font-bold">$' + (kpis[0]?.cost||0).toFixed(2) + '</div>' + sparkline(salesTrend, '#2563eb') + '</div>' +
+        '<div class="bg-white p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Sell-through Rate</div><div class="flex items-center gap-2"><span class="text-2xl font-bold">' + sellThroughRate + '%</span><span class="text-xs ' + (sellTrend==='up'?'text-green-500':'text-red-500') + '">' + (sellTrend==='up'?'▲':sellTrend==='down'?'▼':'') + '</span></div></div>' +
+        '<div class="bg-white p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Avg Profit / Item</div><div class="flex items-center gap-2"><span class="text-2xl font-bold">$' + avgProfit + '</span><span class="text-xs ' + (profitTrend==='up'?'text-green-500':profitTrend==='down'?'text-red-500':'') + '">' + (profitTrend==='up'?'▲':profitTrend==='down'?'▼':'') + '</span></div></div>' +
+        '<div class="bg-white p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Active Listings</div><div class="text-2xl font-bold">' + (kpis[0]?.active||0) + '</div></div>' +
+        '</div>' +
+
+        '<div class="grid grid-cols-3 gap-4 mb-6">' +
+        '<div class="bg-white p-4 rounded-xl border border-green-200"><div class="text-xs text-gray-500 uppercase">Avg Item Sold Margin</div><div class="text-2xl font-bold text-green-700">$' + parseFloat(avgMargin).toFixed(2) + '</div><div class="text-xs text-gray-400 mt-1">avg profit per item sold this month</div></div>' +
+        '<div class="bg-white p-4 rounded-xl border border-blue-200"><div class="text-xs text-gray-500 uppercase">Monthly ROI</div><div class="text-2xl font-bold text-blue-700">' + parseFloat(monthlyRoi).toFixed(1) + '%</div><div class="text-xs text-gray-400 mt-1">net profit ÷ cost invested (this month)</div></div>' +
+        '<div class="bg-white p-4 rounded-xl border border-purple-200"><div class="text-xs text-gray-500 uppercase">YTD Net Profit</div><div class="text-2xl font-bold text-purple-700">$' + parseFloat(ytdProfit).toFixed(2) + '</div><div class="text-xs text-gray-400 mt-1">item profit $' + ytdItemProfit.toFixed(2) + ' − expenses $' + ytdExpenses.toFixed(2) + '</div></div>' +
+        '</div>' +
+        
+        '<div class="bg-white rounded-xl border p-6 mb-6"><div class="flex justify-between items-center mb-4">' +
+        '<h3 class="font-anton text-2xl">Monthly Goals - ' + currentMonth + '</h3><div class="flex gap-2"><button onclick="openSoldItemsModal(\'' + currentMonth + '\')" class="bg-gray-800 text-white px-3 py-1 rounded font-bold text-xs hover:bg-gray-900">View Sold Items</button><button onclick="openGoalModal(\'' + currentMonth + '\', ' + goal.items + ', ' + goal.profit + ')" class="bg-red-600 text-white px-3 py-1 rounded font-bold text-xs hover:bg-red-700">Edit Goal</button></div></div>' +
+        '<div class="grid grid-cols-2 gap-6">' +
+        '<div><div class="flex justify-between mb-2"><span class="text-sm font-bold">Items Sold Goal</span><span class="text-sm">' + soldItems + ' / ' + (goal.items || '—') + '</span></div>' +
+        '<div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden"><div class="bg-red-600 h-3 rounded-full transition-all flex items-center justify-center text-xs text-white" style="width: ' + Math.max(2, progressPercent) + '%;">' + (progressPercent > 5 ? Math.round(progressPercent) + '%' : '') + '</div></div></div>' +
+        '<div><div class="flex justify-between mb-2"><span class="text-sm font-bold">Profit Goal</span><span class="text-sm">$' + monthlyProfit.toFixed(2) + ' / $' + (goal.profit || '—') + '</span></div>' +
+        '<div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden"><div class="bg-green-600 h-3 rounded-full transition-all flex items-center justify-center text-xs text-white" style="width: ' + Math.max(2, profitGoalPercent) + '%;">' + (profitGoalPercent > 5 ? Math.round(profitGoalPercent) + '%' : '') + '</div></div></div>' +
+        '</div></div>' +
+        
+        '<div class="grid grid-cols-2 gap-6 mb-6">' +
+        '<div class="bg-white rounded-xl border p-4"><h3 class="font-bold mb-3 text-gray-700">30-Day Sales Trend</h3><p class="text-xs text-gray-500 mb-2">Number of items sold each day</p><div class="flex items-center gap-2 mb-3"><span class="w-3 h-3 bg-blue-500 rounded-sm inline-block"></span><span class="text-xs text-gray-600">Items Sold</span></div><div class="flex items-end h-32 gap-1">' + 
+        salesTrend.slice(-15).map(function(d) { return '<div class="flex-1 bg-blue-500 rounded-t" style="height:' + Math.max(4, (d.count / Math.max.apply(Math, salesTrend.map(function(x) { return x.count; }).concat([1])) * 100)) + 'px; min-height:4px;" title="Date: ' + d.day + '\nItems Sold: ' + d.count + '"></div>'; }).join('') + '</div><div class="mt-2 text-xs text-gray-400">Hover over bars for daily details</div></div>' +
+        '<div class="bg-white rounded-xl border p-4"><h3 class="font-bold mb-3 text-gray-700">Profit Trend</h3><p class="text-xs text-gray-500 mb-2">Daily profit from sold items</p><div class="flex items-center gap-2 mb-3"><span class="w-3 h-3 bg-green-500 rounded-sm inline-block"></span><span class="text-xs text-gray-600">Profit ($)</span></div><div class="flex items-end h-32 gap-1">' + 
+        salesTrend.slice(-15).map(function(d) { return '<div class="flex-1 bg-green-500 rounded-t" style="height:' + Math.max(4, (d.profit / Math.max.apply(Math, salesTrend.map(function(x) { return x.profit || 0; }).concat([1])) * 100)) + 'px; min-height:4px;" title="Date: ' + d.day + '\nProfit: $' + parseFloat(d.profit || 0).toFixed(2) + '"></div>'; }).join('') + '</div><div class="mt-2 text-xs text-gray-400">Hover over bars for daily details</div></div></div>' +
+        '</div>' +
+        
+        '<div class="grid grid-cols-3 gap-6 mb-6">' +
+        '<div class="bg-white rounded-xl border p-4"><h3 class="font-bold mb-3 text-gray-700">Condition Distribution</h3><div class="space-y-2 text-sm">' + 
+        (health.length ? health.map(function(h) { return '<div class="flex justify-between"><span>' + (h.condition||'Unknown') + '</span><span class="font-bold">' + h.count + '</span></div>'; }).join('') : '<div class="text-gray-400">No data</div>') + '</div></div>' +
+        '<div class="bg-white rounded-xl border p-4"><h3 class="font-bold mb-3 text-gray-700">Slow Moving Items</h3><div class="space-y-1 text-sm">' + 
+        (items.filter(function(i) { return i.status !== 'Sold' && i.days_stale > 30; }).slice(0,5).map(function(i) { return '<div class="truncate">' + i.item_number + ': ' + (i.title||'') + ' (' + i.days_stale + 'd)</div>'; }).join('') || '<div class="text-gray-400">None</div>') + '</div></div>' +
+        '<div class="bg-white rounded-xl border p-4"><h3 class="font-bold mb-3 text-gray-700">Fast Moving Items</h3><div class="space-y-1 text-sm">' + 
+        (items.filter(function(i) { return i.status === 'Sold'; }).slice(0,5).map(function(i) { return '<div class="truncate">' + i.item_number + ': ' + (i.title||'') + '</div>'; }).join('') || '<div class="text-gray-400">None</div>') + '</div></div>' +
+        '</div>' +
+        
+        '<div class="grid grid-cols-2 gap-6 mb-6">' +
+        '<div class="bg-white rounded-xl border p-4"><h3 class="font-bold mb-3 text-gray-700">Top Vendors</h3><table class="w-full text-sm"><thead><tr class="border-b"><th class="text-left pb-1">Vendor</th><th class="pb-1">Profit</th><th class="pb-1">Items</th></tr></thead><tbody>' + 
+        vendors.map(function(v) { return '<tr><td>' + v.name + '</td><td class="text-right">$' + v.profit.toFixed(0) + '</td><td class="text-right">' + v.items_sold + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        '<div class="bg-white rounded-xl border p-4"><h3 class="font-bold mb-3 text-gray-700">Expense Impact</h3><div class="space-y-2"><div class="flex justify-between"><span>30-Day Expenses:</span><span class="font-bold">$' + expenses30.total.toFixed(2) + '</span></div><div class="flex justify-between"><span>Expense/Profit Ratio:</span><span class="font-bold">' + expenseRatio + '%</span></div><div class="flex justify-between"><span>Largest Category:</span><span class="font-bold">' + expenses30.type + '</span></div></div></div>' +
+        '</div>' +
+        
+        '<div class="bg-white rounded-xl border p-4 mb-6"><h3 class="font-bold mb-3 text-gray-700">Operational Alerts</h3><div class="space-y-2 text-sm">' + 
+        (alerts.slice(0,5).map(function(a) { var label = a.type==='stale'?'Listed >45d':a.type==='margin'?'Low margin':a.type==='photos'?'No photos':''; return '<div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-red-100 text-red-800 rounded text-xs">' + label + '</span><span>' + a.item + '</span></div>'; }).join('') || '<div class="text-gray-400">No alerts</div>') + '</div></div>' +
+
+        '<div class="bg-white rounded-xl border p-6 mb-6"><div class="flex justify-between items-center mb-4"><h3 class="font-anton text-2xl">Top Selling Brands</h3><span class="text-xs text-gray-400">By items sold</span></div>' +
+        '<div class="grid grid-cols-4 gap-4 mb-6">' +
+            '<div class="bg-gray-50 p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Top Brands</div><div class="text-2xl font-bold">' + topBrands.length + '</div></div>' +
+            '<div class="bg-gray-50 p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Total Items Sold</div><div class="text-2xl font-bold text-green-600">' + topBrandsItemsSold.toFixed(0) + '</div></div>' +
+            '<div class="bg-gray-50 p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Total Revenue</div><div class="text-2xl font-bold text-blue-700">$' + topBrandsRevenue.toFixed(2) + '</div></div>' +
+            '<div class="bg-gray-50 p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Avg Revenue / Brand</div><div class="text-2xl font-bold text-purple-700">$' + topBrandsAvgRevenue.toFixed(2) + '</div></div>' +
+        '</div>' +
+        '<div class="flex items-center gap-2 mb-3"><span class="w-3 h-3 bg-purple-500 rounded-sm inline-block"></span><span class="text-xs text-gray-600">Revenue by brand</span></div>' +
+        '<div class="flex items-end h-48 gap-2">' +
+        (topBrands.length ? topBrands.map(function(b) {
+            const pct = topBrandsMaxRevenue > 0 ? (Math.max(0, parseFloat(b.revenue || b.profit || 0)) / topBrandsMaxRevenue * 100) : 0;
+            return '<div class="flex-1 bg-purple-500 rounded-t flex flex-col justify-end items-center" style="height:' + Math.max(4, pct) + '%; min-height:4px;" title="' + escapeHtml(b.name || 'Unnamed') + '\nRevenue: $' + parseFloat(b.revenue || b.profit || 0).toFixed(2) + '\nItems: ' + (b.items_sold || 0) + '"><span class="text-[10px] text-white font-bold pb-1">$' + Math.round(parseFloat(b.revenue || b.profit || 0)) + '</span></div>';
+        }).join('') : '<div class="text-gray-400">No sales yet</div>') +
+        '</div>' +
+        '<div class="flex gap-2 mt-2">' +
+        (topBrands.length ? topBrands.map(function(b) { return '<div class="flex-1 text-center text-[10px] text-gray-500 truncate">' + escapeHtml(b.name || 'Uncat.') + '</div>'; }).join('') : '') +
+        '</div>' +
+        '</div>' +
+
+        '<div class="grid grid-cols-2 gap-6">' +
+        '<div class="bg-white rounded border"><div class="p-3 border-b font-bold">Recent Inventory</div>' + (recentItems.length ? '<table class="w-full text-sm"><thead><tr class="bg-gray-50"><th class="p-2 text-left">Item</th><th class="p-2 text-left">Title</th><th class="p-2">Status</th></tr></thead><tbody>' + recentItems.map(function(i) { return '<tr class="border-t"><td class="p-2 font-mono text-xs">' + escapeHtml(i.item_number) + '</td><td class="p-2">' + escapeHtml(i.title) + '</td><td class="p-2">' + escapeHtml(i.status) + '</td></tr>'; }).join('') + '</tbody></table>' : '<div class="p-4 text-gray-400">No items</div>') + '</div>' +
+        '<div class="bg-white rounded-xl border p-6"><div class="p-3 border-b font-bold mb-4">Sales by Location</div>' +
+        '<div id="sales-map" class="border-2 border-gray-200 rounded-lg"></div>' +
+        '</div>' +
+        '</div>';
+    
+    renderSalesMap();
+    
+    updateSystemStatus(true);
+}
+
+async function buildDashboardLegacy() {
+    const currentMonth = new Date().toISOString().slice(0,7);
+    let kpis = [], items = [], orders = [], salesTrend = [], health = [], vendors = [], expenses30 = { total: 0, type: '—' }, alerts = [];
+    let soldItems = 0, monthlyProfit = 0, goal = { items: 0, profit: 0 };
+    let lastMonthSold = 0, lastMonthProfit = 0;
+    try { kpis = await dbQuery("SELECT COUNT(CASE WHEN status IN ('Available','Listed') THEN 1 END) as active, COALESCE(SUM(cost),0) as cost, COALESCE(SUM(price),0) as listed, COUNT(CASE WHEN status='Processing' THEN 1 END) as pending FROM items"); } catch (e) { console.error('KPIs failed:', e); }
+    try { items = await dbQuery("SELECT item_number, sku, title, category, condition, status, cost, price, quantity, date_listed, date_sold FROM items ORDER BY date_listed DESC LIMIT 15"); } catch (e) { console.error('Items failed:', e); }
+    try { orders = await dbQuery("SELECT * FROM orders WHERE status IN ('Pending','Processing') ORDER BY id DESC LIMIT 5"); } catch (e) { console.error('Orders failed:', e); }
+    try {
+        soldItems = (await dbQuery("SELECT COUNT(*) as sold FROM items WHERE status='Sold' AND date_sold LIKE ?", [currentMonth + '%']))[0]?.sold || 0;
+        monthlyProfit = (await dbQuery("SELECT COALESCE(SUM(price-cost-fees),0) as profit FROM items WHERE status='Sold' AND date_sold LIKE ?", [currentMonth + '%']))[0]?.profit || 0;
+        goal = await getMonthlyGoal(currentMonth);
+    } catch (e) { console.warn('Goals failed:', e); }
+    const lastMonth = new Date(); lastMonth.setMonth(lastMonth.getMonth() - 1);
+    const lastMonthStr = lastMonth.toISOString().slice(0,7);
+    try {
+        lastMonthSold = (await dbQuery("SELECT COUNT(*) as sold FROM items WHERE status='Sold' AND date_sold LIKE ?", [lastMonthStr + '%']))[0]?.sold || 0;
+        lastMonthProfit = (await dbQuery("SELECT COALESCE(SUM(price-cost-fees),0) as profit FROM items WHERE status='Sold' AND date_sold LIKE ?", [lastMonthStr + '%']))[0]?.profit || 0;
+    } catch (e) { console.warn('Last month data failed:', e); }
+    try { salesTrend = await dbQuery("SELECT date_sold as day, COUNT(*) as count, SUM(price-cost-fees) as profit FROM items WHERE date_sold >= date('now', '-30 days') AND status='Sold' GROUP BY date_sold ORDER BY day"); } catch (e) { console.warn('Sales trend failed:', e); }
+    try { health = await dbQuery("SELECT condition, COUNT(*) as count FROM items WHERE condition IS NOT NULL GROUP BY condition"); } catch (e) { console.warn('Health failed:', e); }
+    try { vendors = await dbQuery("SELECT v.name, v.vendor_id, COUNT(i.item_number) as items_sold, COALESCE(SUM(i.price - i.cost - i.fees),0) as profit FROM vendors v LEFT JOIN items i ON i.vendor_id = v.vendor_id AND i.status='Sold' GROUP BY v.vendor_id, v.name ORDER BY profit DESC LIMIT 5"); } catch (e) { console.warn('Vendors failed:', e); }
+    try { expenses30 = (await dbQuery("SELECT COALESCE(SUM(amount),0) as total, type FROM expenses WHERE expense_date >= date('now', '-30 days') GROUP BY type ORDER BY total DESC LIMIT 1"))[0] || { total: 0, type: '—' }; } catch (e) { console.warn('Expenses failed:', e); }
+    try {
+        const staleItems = await dbQuery("SELECT item_number, title FROM items WHERE status IN ('Available','Listed') AND date_listed <= date('now', '-45 days') LIMIT 3");
+        const lowMargin = await dbQuery("SELECT item_number, title, price, cost FROM items WHERE status='Available' AND (price - cost) <= 0 LIMIT 3");
+        const noPhotos = await dbQuery("SELECT item_number, title FROM items WHERE (photos IS NULL OR photos='[]' OR photos='') AND status IN ('Available','Listed') LIMIT 3");
+        alerts = staleItems.map(function(i) { return {type: 'stale', item: i.item_number, text: i.title}; }).concat(lowMargin.map(function(i) { return {type: 'margin', item: i.item_number, text: i.title}; })).concat(noPhotos.map(function(i) { return {type: 'photos', item: i.item_number, text: i.title}; }));
+    } catch (e) { console.warn('Alerts failed:', e); }
+    let lifetime = { total_revenue: 0, total_cost: 0, total_fees: 0, total_expenses: 0, lifetime_profit: 0 };
+    let lifetimeCategories = [];
+    try {
+        lifetime = (await dbQuery("SELECT (SELECT COALESCE(SUM(price),0) FROM items WHERE status='Sold') as total_revenue, (SELECT COALESCE(SUM(cost),0) FROM items WHERE status='Sold') as total_cost, (SELECT COALESCE(SUM(fees),0) FROM items WHERE status='Sold') as total_fees, (SELECT COALESCE(SUM(amount),0) FROM expenses) as total_expenses, (SELECT COALESCE(SUM(price-cost-fees),0) FROM items WHERE status='Sold') - (SELECT COALESCE(SUM(amount),0) FROM expenses) as lifetime_profit"))[0] || lifetime;
+        lifetimeCategories = await dbQuery("SELECT category, COUNT(*) as count, COALESCE(SUM(price),0) as revenue, COALESCE(SUM(price-cost-fees),0) as profit FROM items WHERE status='Sold' GROUP BY category ORDER BY profit DESC");
+    } catch (e) { console.warn('Lifetime data failed:', e); }
+    return { kpis: kpis, items: items, orders: orders, soldItems: soldItems, monthlyProfit: monthlyProfit, goal: goal, lastMonthSold: lastMonthSold, lastMonthProfit: lastMonthProfit, salesTrend: salesTrend, health: health, vendors: vendors, expenses30: expenses30, alerts: alerts, lifetime: lifetime, lifetimeCategories: lifetimeCategories };
+}
+
+function tagNumberOf(itemNumber) {
+    const digits = String(itemNumber || '').match(/\d/g);
+    if (!digits || !digits.length) return 0;
+    const last3 = digits.slice(-3).join('');
+    return parseInt(last3, 10) || 0;
+}
+
+const INVENTORY_SORTS = [
+    { value: 'tag-asc', label: 'Tag # (first → last)' },
+    { value: 'tag-desc', label: 'Tag # (last → first)' },
+    { value: 'newest', label: 'Newest listed' },
+    { value: 'oldest', label: 'Oldest listed' },
+    { value: 'price-asc', label: 'Price (low → high)' },
+    { value: 'price-desc', label: 'Price (high → low)' },
+    { value: 'title', label: 'Title (A → Z)' }
+];
+
+const INVENTORY_STATUSES = ['all', 'Available', 'Listed', 'Hold', 'Repairs', 'Sold'];
+
+// Persistent inventory view state — survives Add/Edit/Delete re-renders and only
+// resets when the admin dashboard is closed (logout) or the filter is changed.
+let INV_SEARCH = '';
+let INV_SORT = 'tag-asc';
+let INV_STATUS = 'all';
+
+function resetInventoryState() {
+    INV_SEARCH = '';
+    INV_SORT = 'tag-asc';
+    INV_STATUS = 'all';
+}
+
+async function renderInventory(el, searchTerm, sortKey, statusFilter) {
+    // Fall back to the persistent state when no explicit value is passed
+    // (e.g. after an Add/Edit/Delete re-render triggered by showPage).
+    if (searchTerm === undefined) searchTerm = INV_SEARCH;
+    if (sortKey === undefined) sortKey = INV_SORT;
+    if (statusFilter === undefined) statusFilter = INV_STATUS;
+    let items;
+    try {
+        const res = await fetch('/api/inventory');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        items = (await res.json()).items;
+    } catch (e) {
+        console.warn('Inventory API failed, using legacy query:', e.message);
+        items = await dbQuery("SELECT item_number, sku, title, category, condition, status, cost, price, quantity, date_listed, date_sold FROM items ORDER BY date_listed DESC");
+    }
+    searchTerm = searchTerm || '';
+    sortKey = sortKey || 'tag-asc';
+    statusFilter = statusFilter || 'all';
+
+    const term = searchTerm.toLowerCase();
+    let filtered = term ? items.filter(function(i) {
+        return (i.title || '').toLowerCase().includes(term) ||
+               (i.item_number || '').toLowerCase().includes(term) ||
+               (i.sku || '').toLowerCase().includes(term);
+    }) : items.slice();
+
+    if (statusFilter !== 'all') {
+        filtered = filtered.filter(function(i) { return i.status === statusFilter; });
+    }
+
+    filtered.sort(function(a, b) {
+        switch (sortKey) {
+            case 'tag-asc': return tagNumberOf(a.item_number) - tagNumberOf(b.item_number);
+            case 'tag-desc': return tagNumberOf(b.item_number) - tagNumberOf(a.item_number);
+            case 'newest': return (b.date_listed || '').localeCompare(a.date_listed || '');
+            case 'oldest': return (a.date_listed || '').localeCompare(b.date_listed || '');
+            case 'price-asc': return (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0);
+            case 'price-desc': return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0);
+            case 'title': return (a.title || '').localeCompare(b.title || '');
+            default: return 0;
+        }
+    });
+
+    const rows = filtered.map(function(i) {
+        const statusClass = i.status === 'Available' ? 'bg-green-100 text-green-800' : i.status === 'Hold' ? 'bg-orange-100 text-orange-800' : i.status === 'Repairs' ? 'bg-purple-100 text-purple-800' : i.status === 'Sold' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800';
+        return '<tr class="border-t">' +
+            '<td class="p-2 font-mono text-xs"><a href="#" onclick="viewItemDetails(\''+ i.item_number +'\'); showPage(\'item-details\'); return false;" style="color: #2563eb; text-decoration: underline;">'+ i.item_number +'</a></td>' +
+            '<td class="p-2 text-center font-mono text-xs font-bold text-gray-600">'+ tagNumberOf(i.item_number) +'</td>' +
+            '<td class="p-2"><span contenteditable="true" class="editable" data-field="title" style="border-bottom:1px dashed #ccc">'+ (i.title||'Untitled') +'</span></td>' +
+            '<td class="p-2"><span contenteditable="true" class="editable" data-field="category" style="border-bottom:1px dashed #ccc">'+ (i.category||'—') +'</span></td>' +
+            '<td class="p-2">$'+ (i.cost||0).toFixed(2) +'</td>' +
+            '<td class="p-2">$'+ (i.price||0).toFixed(2) +'</td>' +
+            '<td class="p-2"><span contenteditable="true" class="editable" data-field="quantity" style="border-bottom:1px dashed #ccc">'+ (i.quantity||1) +'</span></td>' +
+            '<td class="p-2"><span class="px-2 py-1 rounded text-xs font-bold '+ statusClass +'">'+ escapeHtml(i.status) +'</span></td>' +
+            '<td class="p-2">' +
+            '<button onclick="openEditItem(\''+ i.item_number +'\')" class="text-blue-600 hover:underline text-xs mr-2">Edit</button>' +
+            '<button onclick="deleteItem(\''+ i.item_number +'\')" class="text-red-600 hover:underline text-xs">Delete</button>' +
+            '</td></tr>';
+    }).join('');
+
+    const sortOptionsHtml = INVENTORY_SORTS.map(function(s) {
+        return '<option value="' + s.value + '"' + (s.value === sortKey ? ' selected' : '') + '>' + s.label + '</option>';
+    }).join('');
+    const statusOptionsHtml = INVENTORY_STATUSES.map(function(s) {
+        return '<option value="' + s + '"' + (s === statusFilter ? ' selected' : '') + '>' + (s === 'all' ? 'All Statuses' : s) + '</option>';
+    }).join('');
+
+    el.innerHTML = '<div class="flex flex-wrap justify-between items-end mb-4 gap-4">' +
+        '<div class="flex items-center gap-4 flex-wrap">' +
+        '<h2 class="font-anton text-3xl mb-4">Inventory ('+ filtered.length +')</h2>' +
+        '<input type="text" id="inventory-search" placeholder="Search by title, item #, or SKU..." value="'+ escapeAttr(searchTerm) +'" class="border rounded-xl p-2 text-sm w-64">' +
+        '<select id="inventory-status" title="Filter by status" class="border rounded-xl p-2 text-sm bg-white">'+ statusOptionsHtml +'</select>' +
+        '<select id="inventory-sort" title="Sort results" class="border rounded-xl p-2 text-sm bg-white">'+ sortOptionsHtml +'</select>' +
+        '</div>' +
+        '<button onclick="openAddItem()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Item</button>' +
+        '</div>' +
+        (filtered.length ? '<div class="bg-white rounded-xl border overflow-x-auto"><table class="w-full text-sm rounded-xl overflow-hidden">' +
+        '<thead><tr class="bg-gray-50"><th class="p-2 text-left">Item #</th><th class="p-2 text-center">Tag #</th><th class="p-2 text-left">Title</th><th class="p-2">Category</th><th class="p-2">Cost</th><th class="p-2">Price</th><th class="p-2">Stock</th><th class="p-2">Status</th><th class="p-2">Actions</th></tr></thead>' +
+        '<tbody>'+ rows +'</tbody></table></div>' : '<div class="text-center py-20 text-gray-400">No items in inventory</div>');
+
+    function applyFilters() {
+        const s = document.getElementById('inventory-search');
+        const sort = document.getElementById('inventory-sort');
+        const stat = document.getElementById('inventory-status');
+        // Persist the chosen values so Add/Edit/Delete re-renders keep them.
+        INV_SEARCH = s ? s.value : searchTerm;
+        INV_SORT = sort ? sort.value : sortKey;
+        INV_STATUS = stat ? stat.value : statusFilter;
+        renderInventory(el, INV_SEARCH, INV_SORT, INV_STATUS);
+    }
+    const searchInput = document.getElementById('inventory-search');
+    const sortInput = document.getElementById('inventory-sort');
+    const statusInput = document.getElementById('inventory-status');
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    if (sortInput) sortInput.addEventListener('change', applyFilters);
+    if (statusInput) statusInput.addEventListener('change', applyFilters);
+}
+
+async function openAddItem() {
+    await openItemForm(null);
+}
+
+async function openEditItem(itemNumber) {
+    await openItemForm(itemNumber);
+}
+
+async function openItemForm(itemNumber) {
+    const isEdit = !!itemNumber;
+    let item = null;
+    if (isEdit) {
+        try {
+            item = (await dbQuery("SELECT * FROM items WHERE item_number = ?", [itemNumber]))[0];
+        } catch (e) {
+            return toast('Could not load item: ' + e.message);
+        }
+        if (!item) return toast('Item not found');
+    }
+    window.editingItemNumber = isEdit ? itemNumber : null;
+    const num = isEdit ? itemNumber : 'ITM-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random()*9000)+1000);
+    let vendors = [];
+    try { vendors = await dbQuery('SELECT * FROM vendors ORDER BY name'); } catch(e) { console.warn('Vendors load failed', e); }
+    const vendorOptions = vendors.map(function(v) { return '<option value="' + v.vendor_id + '" ' + (item && item.vendor_id == v.vendor_id ? 'selected' : '') + '>' + v.name + '</option>'; }).join('');
+    const categories = ['Clubs','Apparel','Accessories','Balls','Bags','Shoes','Training','Other'];
+    const categoryOptions = categories.map(function(c) { return '<option ' + (item && item.category===c ? 'selected' : '') + '>' + c + '</option>'; }).join('');
+    const conditions = ['New','Excellent','Good','Fair','Poor'];
+    const conditionOptions = conditions.map(function(c) { return '<option ' + (isEdit && item && item.condition===c ? 'selected' : '') + (c==='Excellent' && !isEdit ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+    const statuses = ['Available','Listed','Hold','Repairs','Sold'];
+    const statusOptions = statuses.map(function(s) { return '<option ' + (isEdit && item && item.status===s ? 'selected' : '') + (s==='Listed' && !isEdit ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+    const photoPreviews = isEdit && item && item.photos && item.photos.length ? item.photos.map(function(p) { return '<img src="' + p + '" class="h-20 object-contain rounded border">'; }).join('') : '';
+
+    window._vendors = vendors;
+    const saleType = (isEdit && item && (item.sale_type || item.location)) || 'Shipped';
+    
+    openModal('<h2 class="font-anton text-3xl mb-2">' + (isEdit ? 'Edit Item' : 'Add New Item') + '</h2>' +
+        '<form onsubmit="saveItem(event)" class="space-y-2">' +
+        '<div class="grid grid-cols-2 gap-2">' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Item Number (SKU) * <span class="font-normal text-gray-400">(editable)</span></label>' +
+                '<div class="flex gap-2">' +
+                '<input id="m-num" value="' + (isEdit ? item.item_number : num) + '" onblur="onItemNumberInput()" required class="w-full border rounded-xl p-2 font-mono">' +
+                '<button type="button" onclick="applySmartSku()" title="Auto-fill from coded SKU" class="bg-gray-800 text-white px-3 rounded-xl font-bold text-sm whitespace-nowrap">✨ Fill</button>' +
+                '</div></div>' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">SKU Alias</label><input id="m-sku" value="' + (isEdit ? (item.sku||'') : '') + '" class="w-full border rounded-xl p-2"></div>' +
+            '</div>' +
+        '<p class="text-xs text-gray-500 -mt-1 mb-1">Tip: paste a coded SKU (Brand-Type-Size-Month-Price-Source-Tag#) and hit <span class="font-bold">✨ Fill</span>. <a href="#" onclick="showPage(\'legend\')" class="text-blue-600 underline">Manage legend</a></p>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Title *</label><input id="m-title" value="' + (isEdit ? (item.title||'') : '') + '" required class="w-full border rounded-xl p-2"></div>' +
+        '<div class="grid grid-cols-3 gap-2">' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Category</label><select id="m-cat" class="w-full border rounded-xl p-2">' + categoryOptions + '</select></div>' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Condition</label><select id="m-con" class="w-full border rounded-xl p-2">' + conditionOptions + '</select></div>' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Status</label><select id="m-stat" class="w-full border rounded-xl p-2">' + statusOptions + '</select></div>' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Date Sold</label><input id="m-date-sold" type="date" value="' + (isEdit ? (item.date_sold || '') : '') + '" class="w-full border rounded-xl p-2"></div>' +
+            '</div>' +
+        '<div class="grid grid-cols-2 gap-2">' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Sale Type</label><select id="m-saletype" class="w-full border rounded-xl p-2"><option value="Shipped"' + (saleType==='Shipped'?' selected':'') + '>Shipped (platform fee applies)</option><option value="Local Pickup"' + (saleType==='Local Pickup'?' selected':'') + '>Local Pickup (no platform fee)</option></select></div>' +
+            '<div class="flex items-end"><p class="text-xs text-gray-500 leading-snug">Local Pickup = no platform/listing fee & no shipping label. Only packaging (logged in Expenses) applies. Set <b>Fees</b> to $0 for pickups.</p></div>' +
+            '</div>' +
+        '<div class="grid grid-cols-3 gap-2">' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Vendor</label><select id="m-vendor" class="w-full border rounded-xl p-2"><option value="">None</option>' + vendorOptions + '</select></div>' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Cost ($)</label><input id="m-cost" type="number" step="0.01" value="' + (isEdit ? (item.cost||0) : 0) + '" class="w-full border rounded-xl p-2"></div>' +
+            '<div><label class="block text-xs font-bold text-gray-600 mb-1">Price ($)</label><input id="m-price" type="number" step="0.01" value="' + (isEdit ? (item.price||0) : 0) + '" class="w-full border rounded-xl p-2"></div>' +
+            '</div>' +
+        '<input type="hidden" id="m-size" value="' + (isEdit ? (item.size||'') : '') + '">' +
+        '<input type="hidden" id="m-source" value="' + (isEdit ? (item.source||'') : '') + '">' +
+        '<input type="hidden" id="m-tagnum" value="' + (isEdit ? (item.tag_number||'') : '') + '">' +
+        '<input type="hidden" id="m-date-acquired" value="' + (isEdit ? (item.date_acquired||'') : '') + '">' +
+        '<input type="hidden" id="m-qty" value="' + (isEdit ? (item.quantity||1) : 1) + '">' +
+        '<label class="flex items-center gap-2 mt-1"><input type="checkbox" id="m-featured" ' + (isEdit && item && item.featured ? 'checked' : '') + ' class="w-4 h-4"> <span class="text-xs font-bold text-gray-600">Feature on storefront (Best Sellers)</span></label>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Description</label><textarea id="m-desc" rows="2" class="w-full border rounded-xl p-2">' + (isEdit ? (item.description||'') : '') + '</textarea>' +
+            '<button type="button" id="m-gen-desc" onclick="generateDescription()" class="mt-1 bg-gray-800 text-white px-3 py-1.5 rounded-xl font-bold text-sm hover:bg-gray-700">✨ Generate description</button></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Photos</label><input type="file" id="m-photos" accept="image/*" multiple class="w-full border rounded p-2 text-sm"><div id="photo-previews" class="grid grid-cols-4 gap-2 mt-1">' + photoPreviews + '</div></div>' +
+        '<div class="flex gap-2 pt-1">' +
+            '<button type="button" onclick="closeModal()" class="flex-1 border rounded p-2 hover:bg-gray-50">Cancel</button>' +
+            '<button type="submit" class="flex-[2] bg-red-600 text-white rounded p-2 font-bold hover:bg-red-700">' + (isEdit ? 'Update Item' : 'Save Item') + '</button>' +
+            '</div>' +
+        '</form>');
+}
+
+async function renameItemNumber(oldNum, newNum) {
+    const trimmed = (newNum || '').trim();
+    if (!trimmed) throw new Error('Item number cannot be empty');
+    if (trimmed === oldNum) return;
+    const clash = await dbQuery("SELECT item_number FROM items WHERE item_number = ?", [trimmed]);
+    if (clash && clash.length) throw new Error('Item number already in use: ' + trimmed);
+    const oldItem = (await dbQuery("SELECT * FROM items WHERE item_number = ?", [oldNum]))[0];
+    if (!oldItem) throw new Error('Item not found: ' + oldNum);
+    try {
+        const columns = Object.keys(oldItem).filter(function(col) { return col !== 'has_photos'; });
+        const itemNumberIndex = columns.indexOf('item_number');
+        if (itemNumberIndex === -1) throw new Error('item_number column not found in item data');
+        const values = columns.map(function(col) {
+            let val = oldItem[col];
+            if (col === 'photos' || col === 'specs') {
+                if (typeof val === 'object') val = JSON.stringify(val);
+            }
+            return val;
+        });
+        values[itemNumberIndex] = trimmed;
+        await dbQuery('INSERT INTO items (' + columns.join(',') + ') VALUES (' + columns.map(function() { return '?'; }).join(',') + ')', values);
+        const orders = await dbQuery("SELECT id, data FROM orders WHERE item_number = ?", [oldNum]);
+        for (const o of (orders || [])) {
+            let dataStr = o.data;
+            let updated = false;
+            if (dataStr) {
+                try {
+                    const d = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
+                    if (d && d.item_number !== undefined) { d.item_number = trimmed; dataStr = JSON.stringify(d); updated = true; }
+                } catch (e) {}
+            }
+            if (updated) await dbQuery("UPDATE orders SET item_number = ?, data = ? WHERE id = ?", [trimmed, dataStr, o.id]);
+            else await dbQuery("UPDATE orders SET item_number = ? WHERE id = ?", [trimmed, o.id]);
+        }
+        try { await dbQuery("UPDATE expenses SET item_number = ? WHERE item_number = ?", [trimmed, oldNum]); } catch(e) { console.warn('Expense renumber skipped', e); }
+        try { await dbQuery("UPDATE reviews SET item_number = ? WHERE item_number = ?", [trimmed, oldNum]); } catch(e) { console.warn('Review renumber skipped', e); }
+        try { await dbQuery("UPDATE activity_log SET item_number = ? WHERE item_number = ?", [trimmed, oldNum]); } catch(e) { console.warn('Activity renumber skipped', e); }
+        await dbQuery("DELETE FROM items WHERE item_number = ?", [oldNum]);
+    } catch (e) {
+        try { await dbQuery("DELETE FROM items WHERE item_number = ?", [trimmed]); } catch (cleanupErr) {}
+        throw e;
+    }
+}
+
+async function saveItem(e) {
+    e.preventDefault();
+    // Ensure the sale_type column exists (idempotent; ignore if already present).
+    try { await dbQuery("ALTER TABLE items ADD COLUMN sale_type TEXT DEFAULT 'Shipped'"); } catch (e) { /* column likely exists */ }
+    const photosInput = document.getElementById('m-photos');
+    const newPhotos = [];
+    const isEdit = !!window.editingItemNumber;
+    const oldNumber = window.editingItemNumber;
+    const newNumber = document.getElementById('m-num').value.trim();
+    
+    // Convert uploaded files to base64
+    if (photosInput.files && photosInput.files.length > 0) {
+        for (let i = 0; i < photosInput.files.length; i++) {
+            const file = photosInput.files[i];
+            if (file.type.startsWith('image/')) {
+                newPhotos.push(await toBase64(file));
+            }
+        }
+    }
+    
+// Get existing item if editing to preserve existing photos
+     let existingPhotos = [];
+     if (isEdit) {
+          const existing = (await dbQuery("SELECT photos FROM items WHERE item_number = ?", [oldNumber]))[0];
+         // Photos may come back as array or as JSON string from dbQuery
+         if (existing && existing.photos) {
+             if (Array.isArray(existing.photos)) {
+                 existingPhotos = existing.photos;
+             } else if (typeof existing.photos === 'string') {
+                 try { existingPhotos = JSON.parse(existing.photos); } catch(e) { existingPhotos = []; }
+             }
+         }
+     }
+    
+    const photos = newPhotos.length ? newPhotos : existingPhotos;
+    console.log('Photos to save:', photos.length, 'items. isEdit:', isEdit);
+    const item = {
+        item_number: newNumber,
+        sku: document.getElementById('m-sku').value.trim(),
+        title: document.getElementById('m-title').value.trim(),
+        category: document.getElementById('m-cat').value,
+        subcategory: '',
+        condition: document.getElementById('m-con').value,
+        status: document.getElementById('m-stat').value,
+        cost: parseFloat(document.getElementById('m-cost').value)||0,
+        price: parseFloat(document.getElementById('m-price').value)||0,
+        fees: 0,
+        description: document.getElementById('m-desc').value,
+        vendor_id: document.getElementById('m-vendor')?.value || null, 
+        photos: JSON.stringify(photos), 
+        specs: '{}', 
+        listing_url: '', 
+        location: '',
+        quantity: parseInt(document.getElementById('m-qty').value) || 1,
+        size: document.getElementById('m-size')?.value.trim() || '',
+        source: document.getElementById('m-source')?.value.trim() || '',
+        tag_number: document.getElementById('m-tagnum')?.value.trim() || '',
+        date_acquired: document.getElementById('m-date-acquired')?.value || null,
+        date_sold: document.getElementById('m-date-sold')?.value || null,
+        featured: document.getElementById('m-featured')?.checked ? 1 : 0,
+        sale_type: document.getElementById('m-saletype')?.value || 'Shipped'
+    };
+    if (!item.item_number || !item.title) return toast('Item number and title required');
+    try {
+        if (isEdit && oldNumber !== newNumber) {
+            try { await renameItemNumber(oldNumber, newNumber); }
+            catch (err) { return toast('Item number update failed: ' + err.message); }
+        }
+        if (isEdit) {
+            const setCols = 'sku=?,title=?,category=?,subcategory=?,condition=?,status=?,cost=?,price=?,fees=?,description=?,vendor_id=?,photos=?,specs=?,listing_url=?,location=?,quantity=?,size=?,source=?,tag_number=?,date_acquired=?,date_sold=?,featured=?,sale_type=?';
+            const args = [item.sku,item.title,item.category,item.subcategory,item.condition,item.status,item.cost,item.price,item.fees,item.description,item.vendor_id,item.photos,item.specs,item.listing_url,item.location,item.quantity,item.size,item.source,item.tag_number,item.date_acquired,item.date_sold,item.featured,item.sale_type,item.item_number];
+            await dbQuery('UPDATE items SET ' + setCols + ' WHERE item_number=?', args);
+        } else {
+            const baseCols = 'item_number,sku,title,category,subcategory,condition,status,cost,price,fees,description,vendor_id,photos,specs,listing_url,location,quantity,size,source,tag_number,date_acquired,featured,sale_type';
+            const baseVals = '?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?';
+            const baseArgs = [item.item_number,item.sku,item.title,item.category,item.subcategory,item.condition,item.status,item.cost,item.price,item.fees,item.description,item.vendor_id,item.photos,item.specs,item.listing_url,item.location,item.quantity,item.size,item.source,item.tag_number,item.date_acquired,item.featured,item.sale_type];
+            const insertSql = item.status === 'Sold'
+                ? 'INSERT INTO items (' + baseCols + ',date_listed,date_sold) VALUES (' + baseVals + ',CURRENT_TIMESTAMP,?)'
+                : 'INSERT INTO items (' + baseCols + ',date_listed,date_sold) VALUES (' + baseVals + ',CURRENT_TIMESTAMP,?)';
+            const insertArgs = item.status === 'Sold'
+                ? baseArgs.concat([item.date_sold || new Date().toISOString().slice(0,10)])
+                : baseArgs.concat([item.date_sold]);
+            await dbQuery(insertSql, insertArgs);
+        }
+        window.editingItemNumber = null;
+        closeModal();
+        toast(isEdit ? 'Item updated!' : 'Item saved!');
+        showPage('inventory');
+    } catch(e) { toast('Save failed: ' + e.message); }
+}
+
+function toBase64(file) {
+    return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function() { resolve(reader.result); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function deleteItem(num) {
+    if (!confirm('Delete ' + num + '?')) return;
+    try { await dbQuery('DELETE FROM items WHERE item_number = ?', [num]); toast('Deleted'); showPage('inventory'); }
+    catch(e) { toast('Delete failed: ' + e.message); }
+}
+
+const ORDER_SORTS = [
+    { value: 'newest', label: 'Newest first' },
+    { value: 'oldest', label: 'Oldest first' },
+    { value: 'total-asc', label: 'Total (low → high)' },
+    { value: 'total-desc', label: 'Total (high → low)' },
+    { value: 'customer', label: 'Customer (A → Z)' },
+    { value: 'status', label: 'Status (A → Z)' }
+];
+const ORDER_STATUSES = ['all', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+
+let ORD_SEARCH = '';
+let ORD_SORT = 'newest';
+let ORD_STATUS = 'all';
+
+function resetOrdersState() {
+    ORD_SEARCH = '';
+    ORD_SORT = 'newest';
+    ORD_STATUS = 'all';
+}
+
+async function renderOrders(el, searchTerm, sortKey, statusFilter) {
+    if (searchTerm === undefined) searchTerm = ORD_SEARCH;
+    if (sortKey === undefined) sortKey = ORD_SORT;
+    if (statusFilter === undefined) statusFilter = ORD_STATUS;
+    let orders;
+    try {
+        const res = await fetch('/api/orders');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        orders = (await res.json()).orders;
+    } catch (e) {
+        console.warn('Orders API failed, using legacy query:', e.message);
+        orders = await dbQuery("SELECT orders.*, items.date_sold FROM orders LEFT JOIN items ON orders.item_number = items.item_number ORDER BY orders.id DESC LIMIT 500");
+    }
+    let skuMap = {};
+    try {
+        const skuRows = await dbQuery("SELECT item_number, sku FROM items WHERE sku IS NOT NULL AND sku != '' LIMIT 500");
+        skuRows.forEach(function(r) { if (r.item_number) skuMap[r.item_number] = r.sku; });
+    } catch (e) { /* non-fatal */ }
+    searchTerm = (searchTerm || '').toLowerCase();
+    sortKey = sortKey || 'newest';
+    statusFilter = statusFilter || 'all';
+    let filtered = orders.filter(function(o) {
+        var orderData = typeof o.data === 'string' ? (function() { try { return JSON.parse(o.data); } catch(e) { return {}; } })() : (o.data || {});
+        const term = searchTerm || '';
+        if (!term) return true;
+        const displayId = (orderData.sku || (orderData.item_number || o.item_number || '')) ? ('ORD-' + (orderData.sku || orderData.item_number || o.id || '')) : (o.id || '');
+        const custName = (orderData.customer_name || '').toLowerCase();
+        const custEmail = (orderData.customer_email || '').toLowerCase();
+        const id = (o.id || '').toLowerCase();
+        return custName.includes(term) || custEmail.includes(term) || id.includes(term) || displayId.toLowerCase().includes(term);
+    });
+    if (statusFilter !== 'all') {
+        filtered = filtered.filter(function(o) { return (o.status || '') === statusFilter; });
+    }
+    filtered.sort(function(a, b) {
+        switch (sortKey) {
+            case 'newest': return (b.id || '').localeCompare(a.id || '');
+            case 'oldest': return (a.id || '').localeCompare(b.id || '');
+            case 'total-desc': return (parseFloat(b.total || 0) - parseFloat(a.total || 0));
+            case 'total-asc': return (parseFloat(a.total || 0) - parseFloat(b.total || 0));
+            case 'customer': {
+                var aData = typeof a.data === 'string' ? (function() { try { return JSON.parse(a.data); } catch(e) { return {}; } })() : (a.data || {});
+                var bData = typeof b.data === 'string' ? (function() { try { return JSON.parse(b.data); } catch(e) { return {}; } })() : (b.data || {});
+                return (aData.customer_name || '').localeCompare(bData.customer_name || '');
+            }
+            case 'status': return (a.status || '').localeCompare(b.status || '');
+            default: return 0;
+        }
+    });
+    const orderRows = filtered.map(function(o) {
+        var orderData = typeof o.data === 'string' ? (function() { try { return JSON.parse(o.data); } catch(e) { return {}; } })() : (o.data || {});
+        const needsAddr = !orderData.shipping_address;
+        const itemNum = orderData.item_number || o.item_number || '';
+        const custCell = escapeHtml(orderData.customer_name || '—') + (orderData.customer_email ? '<div class="text-xs text-gray-400">' + escapeHtml(orderData.customer_email) + '</div>' : '') + (needsAddr ? '<div class="text-xs text-red-500">needs address</div>' : '');
+        const resolvedSku = orderData.sku || (itemNum ? skuMap[itemNum] : null);
+        const displayId = resolvedSku ? ('ORD-' + resolvedSku) : (itemNum ? ('ORD-' + itemNum) : (o.id || '—'));
+        let lineItems = Array.isArray(orderData.items) && orderData.items.length ? orderData.items : (itemNum ? [{ item_number: itemNum, name: orderData.customer_name ? '' : '', price: o.total }] : []);
+        if (!lineItems.length && itemNum) lineItems = [{ item_number: itemNum, name: '', price: o.total }];
+        const invoiceRows = lineItems.map(function(it) {
+            const nm = it.name || '';
+            const num = it.item_number || '';
+            const price = (parseFloat(it.price) || 0).toFixed(2);
+            const label = nm ? escapeHtmlMsg(nm) + (num ? ' <span class="text-gray-400 font-mono">(' + escapeHtmlMsg(num) + ')</span>' : '') : (num ? '<span class="font-mono">' + escapeHtmlMsg(num) + '</span>' : '<span class="text-gray-400">Unnamed item</span>');
+            return '<div class="py-0.5">' + label + ' — <span class="font-semibold">$' + price + '</span></div>';
+        }).join('');
+        const invoice = '<div class="text-xs leading-snug">' + (invoiceRows || '<span class="text-gray-400">No items</span>') + '</div>' +
+            '<div class="text-xs text-gray-500 mt-1 border-t border-gray-100 pt-1">Total: <span class="font-bold">$' + parseFloat(o.total || 0).toFixed(2) + '</span></div>' +
+            (orderData.shipping_address ? '<div class="text-xs text-gray-500 mt-1 whitespace-pre-line">Ship: ' + escapeHtmlMsg(orderData.shipping_address) + '</div>' : '') +
+            (orderData.paypal_order_id ? '<div class="text-xs text-gray-400 font-mono mt-1">PP: ' + escapeHtmlMsg(orderData.paypal_order_id) + '</div>' : '');
+        const saleDate = orderData.sale_date || o.created_at || o.date_sold;
+        return '<tr class="border-t align-top"><td class="p-2 font-mono whitespace-nowrap">#' + escapeHtmlMsg(displayId) + '</td><td class="p-2 font-bold">' + custCell + '</td><td class="p-2">' + invoice + '</td><td class="p-2">' + escapeHtml(o.status) + '</td><td class="p-2">' + formatDate(saleDate) + '</td><td class="p-2 text-right whitespace-nowrap"><button onclick="openEditOrder(\'' + (o.id || '').replace(/'/g, "\\'") + '\')" class="text-blue-600 hover:underline text-xs mr-2">Edit</button><button onclick="deleteOrder(\'' + (o.id || '').replace(/'/g, "\\'") + '\')" class="text-red-600 hover:underline text-xs">Delete</button></td></tr>';
+    }).join('');
+    const sortOptionsHtml = ORDER_SORTS.map(function(s) {
+        return '<option value="' + s.value + '"' + (s.value === sortKey ? ' selected' : '') + '>' + s.label + '</option>';
+    }).join('');
+    const statusOptionsHtml = ORDER_STATUSES.map(function(s) {
+        return '<option value="' + s + '"' + (s === statusFilter ? ' selected' : '') + '>' + (s === 'all' ? 'All Statuses' : s) + '</option>';
+    }).join('');
+    el.innerHTML = '<div class="flex justify-between items-center mb-4">' +
+        '<h2 class="font-anton text-3xl mb-4">Orders (' + filtered.length + ')</h2>' +
+        '<button onclick="openAddOrder()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Order</button>' +
+        '</div>' +
+        '<div class="flex items-center gap-4 mb-4 flex-wrap">' +
+        '<input type="text" id="orders-search" placeholder="Search by order #, customer, email..." value="' + escapeAttr(searchTerm) + '" class="border rounded-xl p-2 text-sm w-64">' +
+        '<select id="orders-status" title="Filter by status" class="border rounded-xl p-2 text-sm bg-white">' + statusOptionsHtml + '</select>' +
+        '<select id="orders-sort" title="Sort results" class="border rounded-xl p-2 text-sm bg-white">' + sortOptionsHtml + '</select>' +
+        '</div>' +
+        (filtered.length ? '<div class="bg-white rounded-xl border overflow-x-auto"><table class="w-full text-sm rounded-xl overflow-hidden"><thead><tr class="bg-gray-50"><th class="p-2 text-left">#</th><th class="p-2 text-left">Customer</th><th class="p-2 text-left">Invoice</th><th class="p-2">Status</th><th class="p-2">Date Sold</th><th class="p-2 text-right">Actions</th></tr></thead><tbody>' + orderRows + '</tbody></table></div>' : '<div class="text-center py-20 text-gray-400">No orders</div>');
+    function applyFilters() {
+        const s = document.getElementById('orders-search');
+        const sort = document.getElementById('orders-sort');
+        const stat = document.getElementById('orders-status');
+        ORD_SEARCH = s ? s.value : searchTerm;
+        ORD_SORT = sort ? sort.value : sortKey;
+        ORD_STATUS = stat ? stat.value : statusFilter;
+        renderOrders(el, ORD_SEARCH, ORD_SORT, ORD_STATUS);
+    }
+    const searchInput = document.getElementById('orders-search');
+    const sortInput = document.getElementById('orders-sort');
+    const statusInput = document.getElementById('orders-status');
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    if (sortInput) sortInput.addEventListener('change', applyFilters);
+    if (statusInput) statusInput.addEventListener('change', applyFilters);
+}
+
+async function openAddOrder() {
+    const items = await dbQuery('SELECT item_number, sku, title, price FROM items ORDER BY item_number');
+    const itemOptions = items.map(function(i) { return '<option value="'+ i.item_number +'">'+ (i.sku || i.item_number) +' - '+ (i.title||'') +' ($'+(i.price||0).toFixed(2)+')</option>'; }).join('');
+    const today = new Date().toISOString().split('T')[0];
+    openModal('<h2 class="font-anton text-3xl mb-4">Add New Order</h2>' +
+        '<form onsubmit="saveOrder(event)" class="space-y-3">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Customer Name *</label><input id="o-customer" required class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Customer Email</label><input id="o-email" class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Package Destination / Shipping Address *</label><textarea id="o-address" required class="w-full border rounded-xl p-2" rows="2"></textarea></div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Item *</label><select id="o-item" required class="w-full border rounded-xl p-2"><option value="">None</option>'+ itemOptions +'</select></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Total *</label><input id="o-total" type="number" step="0.01" required class="w-full border rounded-xl p-2"></div>' +
+        '</div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Status</label><select id="o-status" class="w-full border rounded-xl p-2"><option>Pending</option><option>Processing</option><option>Shipped</option><option>Delivered</option><option>Cancelled</option></select></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Sale Date *</label><input id="o-sale-date" type="date" value="' + today + '" class="w-full border rounded-xl p-2"></div>' +
+        '<div class="flex gap-3 pt-2">' +
+        '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+        '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Save Order</button>' +
+        '</div>' +
+        '</form>');
+}
+
+async function saveOrder(e) {
+    e.preventDefault();
+    const customer = document.getElementById('o-customer').value.trim();
+    const address = document.getElementById('o-address').value.trim();
+    const email = (document.getElementById('o-email') ? document.getElementById('o-email').value.trim() : '');
+    const itemNumber = document.getElementById('o-item').value;
+    const total = parseFloat(document.getElementById('o-total').value) || 0;
+    const status = document.getElementById('o-status').value;
+    const saleDate = document.getElementById('o-sale-date').value;
+    if (!customer || !address || !itemNumber) return toast('Customer, address, and item are required');
+    const item = (await dbQuery("SELECT sku FROM items WHERE item_number = ?", [itemNumber]))[0];
+    const base = item && item.sku ? item.sku : itemNumber;
+    let orderId = 'ORD-' + base;
+    let counter = 2;
+    while ((await dbQuery("SELECT 1 FROM orders WHERE id = ?", [orderId])).length > 0) {
+        orderId = 'ORD-' + base + '-' + counter;
+        counter++;
+    }
+    const data = { customer_name: customer, customer_email: email, shipping_address: address, item_number: itemNumber, sale_date: saleDate };
+    try {
+        await dbQuery('INSERT INTO orders (id, item_number, total, status, data) VALUES (?,?,?,?,?)', [orderId, itemNumber, total, status, JSON.stringify(data)]);
+        closeModal();
+        toast('Order saved!');
+        showPage('orders');
+    } catch(err) { toast('Save failed: ' + err.message); }
+}
+
+async function openEditOrder(orderId) {
+    const order = (await dbQuery("SELECT * FROM orders WHERE id = ?", [orderId]))[0];
+    if (!order) return toast('Order not found');
+    var orderData = typeof order.data === 'string' ? (function() { try { return JSON.parse(order.data); } catch(e) { return {}; } })() : (order.data || {});
+    const items = await dbQuery('SELECT item_number, sku, title, price FROM items ORDER BY item_number');
+    const itemOptions = items.map(function(i) { return '<option value="'+ i.item_number +'">'+ (i.sku || i.item_number) +' - '+ (i.title||'') +' ($'+(i.price||0).toFixed(2)+')</option>'; }).join('');
+    const selectedItem = orderData.item_number || order.item_number || '';
+    const saleDate = orderData.sale_date || '';
+    openModal('<h2 class="font-anton text-3xl mb-4">Edit Order</h2>' +
+        '<form onsubmit="updateOrder(event, \'' + orderId.replace(/'/g, "\\'") + '\')" class="space-y-3">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Customer Name *</label><input id="o-customer" value="' + (orderData.customer_name || '').replace(/"/g, '&quot;') + '" required class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Customer Email</label><input id="o-email" value="' + (orderData.customer_email || '').replace(/"/g, '&quot;') + '" class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Package Destination / Shipping Address *</label><textarea id="o-address" required class="w-full border rounded-xl p-2" rows="3">' + (orderData.shipping_address || '').replace(/</g, '&lt;') + '</textarea></div>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Item *</label><select id="o-item" required class="w-full border rounded-xl p-2"><option value="">None</option>'+ itemOptions +'</select>' + (selectedItem ? '<div class="text-xs text-gray-500 mt-1 font-mono">Attached item: '+ selectedItem +'</div>' : '') + '</div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Total *</label><input id="o-total" type="number" step="0.01" value="' + parseFloat(order.total || 0).toFixed(2) + '" required class="w-full border rounded-xl p-2"></div>' +
+        '</div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Status</label><select id="o-status" class="w-full border rounded-xl p-2"><option>Pending</option><option>Processing</option><option>Shipped</option><option>Delivered</option><option>Cancelled</option></select></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Tracking # (optional, shown in Shipped email)</label><input id="o-tracking" value="' + escapeHtmlMsg(orderData.tracking || '') + '" class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Sale Date *</label><input id="o-sale-date" type="date" value="' + saleDate + '" class="w-full border rounded-xl p-2"></div>' +
+        '<div class="flex gap-3 pt-2">' +
+        '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+        '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Update Order</button>' +
+        '</div>' +
+        '</form>');
+    // Set selected item after modal opens
+    setTimeout(function() {
+        var sel = document.getElementById('o-item');
+        if (sel) sel.value = selectedItem;
+        var stat = document.getElementById('o-status');
+        if (stat) stat.value = order.status || 'Pending';
+    }, 0);
+}
+
+async function updateOrder(e, orderId) {
+    e.preventDefault();
+        const customer = document.getElementById('o-customer').value.trim();
+        const address = document.getElementById('o-address').value.trim();
+        const email = (document.getElementById('o-email') ? document.getElementById('o-email').value.trim() : '');
+        const itemNumber = document.getElementById('o-item').value;
+        const total = parseFloat(document.getElementById('o-total').value) || 0;
+        const status = document.getElementById('o-status').value;
+        const tracking = (document.getElementById('o-tracking') ? document.getElementById('o-tracking').value.trim() : '');
+        const saleDate = (document.getElementById('o-sale-date') ? document.getElementById('o-sale-date').value : '');
+        if (!customer || !address || !itemNumber) return toast('Customer, address, and item are required');
+        const previous = (await dbQuery("SELECT status, data FROM orders WHERE id = ?", [orderId]))[0];
+        const prevData = previous && previous.data ? (typeof previous.data === 'string' ? (function(){try{return JSON.parse(previous.data);}catch(e){return{};}})() : previous.data) : {};
+        try {
+            await dbQuery('UPDATE orders SET item_number = ?, total = ?, status = ?, data = ? WHERE id = ?', [itemNumber, total, status, JSON.stringify({ customer_name: customer, customer_email: email, shipping_address: address, tracking: tracking, item_number: itemNumber, sale_date: saleDate }), orderId]);
+            // Fire a status email when moving into Shipped/Delivered (and email is present)
+            const statusChanged = !previous || (previous.status || '') !== status;
+            if (statusChanged && email && (status === 'Shipped' || status === 'Delivered')) {
+                const items = Array.isArray(prevData.items) && prevData.items.length ? prevData.items : (prevData.item_number ? [{ item_number: prevData.item_number, name: '' }] : []);
+                fetch('/api/notify/order-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_email: email, status: status, items: items, orderLabel: orderId, tracking: tracking })
+                }).catch(function() {});
+            }
+        closeModal();
+        toast('Order updated!');
+        showPage('orders');
+    } catch(err) { toast('Update failed: ' + err.message); }
+}
+
+async function deleteOrder(orderId) {
+    if (!confirm('Delete order #' + orderId + '?')) return;
+    try {
+        await dbQuery('DELETE FROM orders WHERE id = ?', [orderId]);
+        toast('Order deleted');
+        showPage('orders');
+    } catch(e) { toast('Delete failed: ' + e.message); }
+}
+async function renderVendors(el) {
+    let vendors;
+    try {
+        const res = await fetch('/api/vendors');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        vendors = (await res.json()).vendors;
+    } catch (e) {
+        console.warn('Vendors API failed, using legacy query:', e.message);
+        vendors = await dbQuery("SELECT * FROM vendors ORDER BY name");
+    }
+    const vendorRows = vendors.map(function(v) { return '<tr class="border-t"><td class="p-2 font-bold">' + v.name + '</td><td class="p-2">' + (v.email||'—') + '</td><td class="p-2">' + (v.phone||'—') + '</td><td class="p-2"><button onclick="openEditVendor(' + v.vendor_id + ')" class="text-blue-600 hover:underline text-xs mr-2">Edit</button><button onclick="deleteVendor(' + v.vendor_id + ')" class="text-red-600 hover:underline text-xs">Delete</button></td></tr>'; }).join('');
+    el.innerHTML = '<div class="flex justify-between items-center mb-4">' +
+        '<h2 class="font-anton text-3xl mb-4">Vendors (' + vendors.length + ')</h2>' +
+        '<button onclick="openAddVendor()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Vendor</button>' +
+        '</div>' +
+        (vendors.length ? '<table class="w-full text-sm bg-white rounded-xl border overflow-hidden"><thead><tr class="bg-gray-50"><th class="p-2 text-left">Name</th><th class="p-2 text-left">Email</th><th class="p-2 text-left">Phone</th><th class="p-2">Actions</th></tr></thead><tbody>' + vendorRows + '</tbody></table>' : '<div class="text-center py-20 text-gray-400">No vendors</div>');
+}
+
+async function openAddVendor() {
+    openModal('<h2 class="font-anton text-3xl mb-4">Add New Vendor</h2>' +
+        '<form onsubmit="saveVendor(event)" class="space-y-3">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Vendor Name *</label><input id="v-name" required class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Email</label><input id="v-email" type="email" class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Phone</label><input id="v-phone" class="w-full border rounded-xl p-2"></div>' +
+        '<div class="flex gap-3 pt-2">' +
+        '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+        '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Save Vendor</button>' +
+        '</div></form>');
+}
+
+async function saveVendor(e) {
+    e.preventDefault();
+    const vendor = {
+        name: document.getElementById('v-name').value.trim(),
+        email: document.getElementById('v-email').value.trim(),
+        phone: document.getElementById('v-phone').value.trim()
+    };
+    if (!vendor.name) return toast('Vendor name required');
+    try {
+        await dbQuery('INSERT INTO vendors (name,email,phone) VALUES (?,?,?)', [vendor.name,vendor.email,vendor.phone]);
+        closeModal();
+        toast('Vendor saved!');
+        showPage('vendors');
+    } catch(err) { toast('Save failed: ' + err.message); }
+}
+
+async function openEditVendor(vendorId) {
+    const vendor = (await dbQuery("SELECT * FROM vendors WHERE vendor_id = ?", [vendorId]))[0];
+    if (!vendor) return toast('Vendor not found');
+    openModal('<h2 class="font-anton text-3xl mb-4">Edit Vendor</h2>' +
+        '<form onsubmit="updateVendor(event, ' + vendorId + ')" class="space-y-3">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Vendor Name *</label><input id="v-name" value="' + (vendor.name||'') + '" required class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Email</label><input id="v-email" type="email" value="' + (vendor.email||'') + '" class="w-full border rounded-xl p-2"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Phone</label><input id="v-phone" value="' + (vendor.phone||'') + '" class="w-full border rounded-xl p-2"></div>' +
+        '<div class="flex gap-3 pt-2">' +
+        '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+        '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Update Vendor</button>' +
+        '</div></form>');
+}
+
+async function updateVendor(e, vendorId) {
+    e.preventDefault();
+    const vendor = {
+        name: document.getElementById('v-name').value.trim(),
+        email: document.getElementById('v-email').value.trim(),
+        phone: document.getElementById('v-phone').value.trim()
+    };
+    if (!vendor.name) return toast('Vendor name required');
+    try {
+        await dbQuery('UPDATE vendors SET name=?,email=?,phone=? WHERE vendor_id=?', [vendor.name,vendor.email,vendor.phone,vendorId]);
+        closeModal();
+        toast('Vendor updated!');
+        showPage('vendors');
+    } catch(err) { toast('Update failed: ' + err.message); }
+}
+
+async function deleteVendor(vendorId) {
+    if (!confirm('Delete this vendor?')) return;
+    try { await dbQuery('DELETE FROM vendors WHERE vendor_id = ?', [vendorId]); toast('Deleted'); showPage('vendors');
+    } catch(e) { toast('Delete failed: ' + e.message); }
+}
+async function renderExpenses(el) {
+     let expenses;
+     try {
+         const res = await fetch('/api/expenses');
+         if (!res.ok) throw new Error('HTTP ' + res.status);
+         expenses = (await res.json()).expenses;
+     } catch (e) {
+         console.warn('Expenses API failed, using legacy query:', e.message);
+         expenses = await dbQuery("SELECT e.*, i.sku as item_sku FROM expenses e LEFT JOIN items i ON e.item_number = i.item_number ORDER BY expense_date DESC");
+     }
+     const rows = expenses.map(function(e) { return '<tr class="border-t"><td class="p-2">'+ formatDate(e.expense_date) +'</td><td class="p-2">'+ e.type +'</td><td class="p-2">$'+ e.amount +'</td><td class="p-2">'+ (e.description||'—') +'</td><td class="p-2 px-4 text-center whitespace-nowrap">'+ (e.item_sku||'—') +'</td><td class="p-2 text-center"><button onclick="openEditExpense('+ e.expense_id +')" class="text-blue-600 hover:underline text-xs mr-2">Edit</button><button onclick="deleteExpense('+ e.expense_id +')" class="text-red-600 hover:underline text-xs">Delete</button></td></tr>'; }).join('');
+     el.innerHTML = '<div class="flex justify-between items-center mb-4">' +
+         '<h2 class="font-anton text-3xl mb-4">Expenses ('+ expenses.length +')</h2>' +
+         '<button onclick="openAddExpense()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Expense</button>' +
+         '</div>' +
+         (expenses.length ? '<table class="w-full text-sm bg-white rounded-xl border overflow-hidden"><thead><tr class="bg-gray-50"><th class="p-2 text-left">Date</th><th class="p-2 text-left">Type</th><th class="p-2 text-left">Amount</th><th class="p-2 text-left">Desc</th><th class="p-2 px-4 text-center whitespace-nowrap">SKU #</th><th class="p-2 text-center">Actions</th></tr></thead><tbody>'+ rows +'</tbody></table>' : '<div class="text-center py-20 text-gray-400">No expenses</div>');
+ }
+
+ async function openAddExpense() {
+     const items = await dbQuery('SELECT item_number, sku, title FROM items ORDER BY item_number');
+     const itemOptions = items.map(function(i) { return '<option value="'+ i.item_number +'">'+ (i.sku || i.item_number) +' - '+ (i.title||'') +'</option>'; }).join('');
+     openModal('<h2 class="font-anton text-3xl mb-4">Add New Expense</h2>' +
+         '<form onsubmit="saveExpense(event)" class="space-y-3">' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">Type *</label><input id="e-type" required class="w-full border rounded-xl p-2" list="expense-types"><datalist id="expense-types"><option value="Shipping"><option value="Marketing"><option value="Platform Fee"><option value="Packaging"><option value="Other"></datalist></div>' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">Amount *</label><input id="e-amount" type="number" step="0.01" required class="w-full border rounded-xl p-2"></div>' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">SKU #</label><select id="e-item" class="w-full border rounded-xl p-2"><option value="">None</option>'+ itemOptions +'</select></div>' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">Description *</label><textarea id="e-desc" required class="w-full border rounded-xl p-2" rows="2"></textarea></div>' +
+         '<div class="flex gap-3 pt-2">' +
+             '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+             '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Save Expense</button>' +
+             '</div>' +
+         '</form>');
+ }
+
+async function saveExpense(e) {
+    e.preventDefault();
+    const expense = {
+        type: document.getElementById('e-type').value.trim(),
+        amount: parseFloat(document.getElementById('e-amount').value),
+        item_number: document.getElementById('e-item').value || null,
+        description: document.getElementById('e-desc').value.trim()
+    };
+    if (!expense.type || !expense.amount || !expense.description) return toast('All fields required');
+    try {
+        await dbQuery('INSERT INTO expenses (type, amount, item_number, description) VALUES (?,?,?,?)', [expense.type, expense.amount, expense.item_number, expense.description]);
+        closeModal();
+        toast('Expense saved!');
+        showPage('expenses');
+    } catch(err) { toast('Save failed: ' + err.message); }
+}
+
+async function openEditExpense(expenseId) {
+     const expense = (await dbQuery("SELECT * FROM expenses WHERE expense_id = ?", [expenseId]))[0];
+     if (!expense) return toast('Expense not found');
+     const items = await dbQuery('SELECT item_number, sku, title FROM items ORDER BY item_number');
+     const itemOptions = items.map(function(i) { return '<option value="'+ i.item_number +'" '+ (i.item_number == expense.item_number ? 'selected' : '') +'>'+ (i.sku || i.item_number) +' - '+ (i.title||'') +'</option>'; }).join('');
+     openModal('<h2 class="font-anton text-3xl mb-4">Edit Expense</h2>' +
+         '<form onsubmit="updateExpense(event, '+ expenseId +')" class="space-y-3">' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">Type *</label><input id="e-type" value="'+ (expense.type||'') +'" required class="w-full border rounded-xl p-2" list="expense-types"></div>' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">Amount *</label><input id="e-amount" type="number" step="0.01" value="'+ (expense.amount||0) +'" required class="w-full border rounded-xl p-2"></div>' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">SKU #</label><select id="e-item" class="w-full border rounded-xl p-2"><option value="">None</option>'+ itemOptions +'</select></div>' +
+         '<div><label class="block text-xs font-bold text-gray-600 mb-1">Description *</label><textarea id="e-desc" required class="w-full border rounded-xl p-2" rows="2">'+ (expense.description||'') +'</textarea></div>' +
+         '<div class="flex gap-3 pt-2">' +
+             '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+             '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Update Expense</button>' +
+             '</div>' +
+         '</form>');
+ }
+
+async function updateExpense(e, expenseId) {
+    e.preventDefault();
+    const expense = {
+        type: document.getElementById('e-type').value.trim(),
+        amount: parseFloat(document.getElementById('e-amount').value),
+        item_number: document.getElementById('e-item').value || null,
+        description: document.getElementById('e-desc').value.trim()
+    };
+    if (!expense.type || !expense.amount || !expense.description) return toast('All fields required');
+    try {
+        await dbQuery('UPDATE expenses SET type=?, amount=?, item_number=?, description=? WHERE expense_id=?', [expense.type, expense.amount, expense.item_number, expense.description, expenseId]);
+        closeModal();
+        toast('Expense updated!');
+        showPage('expenses');
+    } catch(err) { toast('Update failed: ' + err.message); }
+}
+
+async function deleteExpense(expenseId) {
+    if (!confirm('Delete this expense?')) return;
+    try { await dbQuery('DELETE FROM expenses WHERE expense_id = ?', [expenseId]); toast('Deleted'); showPage('expenses');
+    } catch(e) { toast('Delete failed: ' + e.message); }
+}
+document.addEventListener('change', function(e) {
+    if (e.target.id === 'm-photos') {
+        const preview = document.getElementById('photo-previews');
+        preview.innerHTML = '';
+        Array.from(e.target.files).slice(0,6).forEach(function(file) {
+            if (!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const img = document.createElement('img');
+                img.src = ev.target.result;
+                img.className = 'w-16 h-16 object-cover rounded border';
+                preview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+});
+
+
+document.addEventListener('focusout', function(e) {
+    if (e.target.classList.contains('editable')) {
+        const field = e.target.dataset.field;
+        const row = e.target.closest('tr');
+        const itemNumber = row ? row.querySelector('.font-mono').textContent.trim() : null;
+        if (!field || !itemNumber) return;
+        let value = e.target.textContent.trim();
+        if (e.target.dataset.type === 'number') value = parseFloat(value) || 0;
+        
+// Auto-set date_sold when status becomes Sold
+         let sql, params;
+         if (field === 'status' && value === 'Sold') {
+             sql = 'UPDATE items SET status = ?, date_sold = DATE(\'now\') WHERE item_number = ?';
+             params = [value, itemNumber];
+         } else {
+             sql = 'UPDATE items SET ' + field + ' = ? WHERE item_number = ?';
+             params = [value, itemNumber];
+         }
+         
+         dbQuery(sql, params).then(function() {
+             toast('Saved');
+             updateSystemStatus(true);
+             // Log sold activity
+             if (field === 'status' && value === 'Sold') {
+                 (async function() {
+                     try {
+                         const item = (await dbQuery('SELECT title, price FROM items WHERE item_number = ?', [itemNumber]))[0];
+                         await dbQuery('INSERT INTO activity_log (action, details, item_number, item_title) VALUES (?, ?, ?, ?)',
+                             ['Sold', 'Sold for $' + (item && item.price || 0), itemNumber, item && item.title || '']);
+                     } catch(e) { console.warn('Activity log failed:', e); }
+                 })();
+             }
+         }).catch(function(e) { toast('Save failed: ' + e.message); updateSystemStatus(false); });
+     }
+});
+ 
+
+// Monthly Goals Functions
+async function getMonthlyGoal(month) {
+    try {
+        const rows = await dbQuery('SELECT items, profit FROM monthly_goals WHERE month = ?', [month]);
+        if (rows.length) return { items: rows[0].items || 0, profit: rows[0].profit || 0 };
+    } catch (e) { console.warn('Goal fetch failed', e); }
+    return { items: 0, profit: 0 };
+}
+
+async function setMonthlyGoal(month, items, profit) {
+    try {
+        await dbQuery('INSERT INTO monthly_goals (month, items, profit) VALUES (?, ?, ?) ON CONFLICT(month) DO UPDATE SET items=excluded.items, profit=excluded.profit', [month, parseInt(items) || 0, parseFloat(profit) || 0]);
+        toast('Goal saved!');
+        showPage('dashboard');
+    } catch (e) { toast('Save failed: ' + e.message); }
+}
+
+function openGoalModal(month, items, profit) {
+    var itemsVal = items || '';
+    var profitVal = profit || '';
+    openModal('<h2 class="font-anton text-3xl mb-4">Edit Monthly Goal</h2>' +
+        '<form onsubmit="saveGoal(event, \''+ month +'\')" class="space-y-3">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Month</label><input value="'+ month +'" readonly class="w-full border rounded-xl p-2 bg-gray-100"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Items Sold Goal</label><input id="goal-items" type="number" min="0" value="'+ itemsVal +'" class="w-full border rounded-xl p-2" placeholder="e.g., 25"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Profit Goal ($)</label><input id="goal-profit" type="number" step="0.01" min="0" value="'+ profitVal +'" class="w-full border rounded-xl p-2" placeholder="e.g., 5000"></div>' +
+        '<div class="flex gap-3 pt-2">' +
+        '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+        '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Save Goal</button>' +
+        '</div></form>');
+}
+
+async function saveGoal(e, month) {
+    e.preventDefault();
+    await setMonthlyGoal(month, document.getElementById('goal-items').value, document.getElementById('goal-profit').value);
+    closeModal();
+}
+
+// Lists every item sold during the goal month (date_sold LIKE 'YYYY-MM%').
+async function openSoldItemsModal(month) {
+    openModal('<div class="flex items-center justify-between mb-4"><h2 class="font-anton text-2xl">Items Sold — ' + month + '</h2>' +
+        '<button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 text-3xl leading-none" aria-label="Close">&times;</button></div>' +
+        '<div id="sold-items-loading" class="text-center py-10 text-gray-400">Loading sold items…</div>' +
+        '<div id="sold-items-body"></div>');
+    document.getElementById('modal').querySelector('.modal').classList.add('modal-wide');
+    try {
+        const rows = await dbQuery("SELECT item_number, sku, title, price, date_sold FROM items WHERE status = 'Sold' AND date_sold LIKE ? ORDER BY date_sold DESC", [month + '%']);
+        const body = document.getElementById('sold-items-body');
+        const loading = document.getElementById('sold-items-loading');
+        if (loading) loading.remove();
+        if (!rows.length) {
+            body.innerHTML = '<div class="text-center py-10 text-gray-400">No items sold in ' + month + ' yet.</div>';
+            return;
+        }
+        const total = rows.reduce(function(s, r) { return s + (parseFloat(r.price) || 0); }, 0);
+        const rowsHtml = rows.map(function(r) {
+            const skuAlias = r.sku || r.item_number || '—';
+            return '<tr class="border-t">' +
+                '<td class="p-2 truncate max-w-xs">' + escapeHtml(r.title || 'Untitled') + '</td>' +
+                '<td class="p-2 font-mono text-xs text-gray-600 whitespace-nowrap">' + escapeHtml(skuAlias) + '</td>' +
+                '<td class="p-2 text-right whitespace-nowrap">$' + (parseFloat(r.price) || 0).toFixed(2) + '</td>' +
+                '<td class="p-2 text-xs text-gray-500 whitespace-nowrap">' + escapeHtml(formatDate(r.date_sold)) + '</td>' +
+                '</tr>';
+        }).join('');
+        body.innerHTML =
+            '<div class="mb-3 text-sm text-gray-600"><b>' + rows.length + '</b> item' + (rows.length === 1 ? '' : 's') + ' sold · <b>$' + total.toFixed(2) + '</b> total</div>' +
+            '<div class="bg-white rounded-xl border overflow-x-auto max-h-[60vh]"><table class="w-full text-sm">' +
+            '<thead class="bg-gray-50"><tr><th class="p-2 text-left">Title</th><th class="p-2 text-left">SKU Alias</th><th class="p-2 text-right">Price</th><th class="p-2 text-left">Sold</th></tr></thead>' +
+            '<tbody>' + rowsHtml + '</tbody></table></div>' +
+            '<div class="mt-3 text-right text-xs text-gray-400">Goal period: ' + month + '</div>';
+    } catch (e) {
+        const body = document.getElementById('sold-items-body');
+        const loading = document.getElementById('sold-items-loading');
+        if (loading) loading.remove();
+        if (body) body.innerHTML = '<div class="text-center py-10 text-red-500">Could not load sold items: ' + escapeHtml(e.message) + '</div>';
+    }
+}
+
+// --- Reviews Functions ---
+function renderStars(rating) {
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+        html += '<svg class="w-4 h-4 inline-block ' + (i <= rating ? 'text-yellow-400' : 'text-gray-300') + '" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2l2.39 7.15h7.22l-5.85 4.28 2.16 6.85L10 14.77l-5.85 4.28 2.16-6.85-5.85-4.28h7.22z"/></svg>';
+    }
+    return html;
+}
+
+async function renderReviews(el, filterStatus = 'Approved') {
+    let reviews = [];
+    try {
+        const res = await fetch('/api/reviews');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        reviews = (await res.json()).reviews;
+    } catch (e) {
+        console.warn('Reviews API failed, using legacy query:', e.message);
+        try {
+            reviews = await dbQuery("SELECT * FROM reviews ORDER BY created_at DESC");
+        } catch (e2) {
+            console.error('Reviews fetch failed:', e2);
+        }
+    }
+    
+    const filtered = reviews.filter(r => filterStatus === 'All' || r.status === filterStatus);
+    refreshReviewBadge(reviews.filter(r => r.status === 'Pending').length);
+    const rows = filtered.map(function(r) {
+        const statusClass = r.status === 'Approved' ? 'bg-green-100 text-green-800' : 
+                          r.status === 'Rejected' ? 'bg-red-100 text-red-800' : 
+                          'bg-yellow-100 text-yellow-800';
+        const platformBadge = r.platform ? '<span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs ml-1">' + escapeHtml(r.platform) + '</span>' : '';
+        return '<tr class="border-t">' +
+            '<td class="p-2">' + renderStars(r.rating) + '</td>' +
+            '<td class="p-2">' + escapeHtml(r.comment || '—') + '</td>' +
+            '<td class="p-2">' + escapeHtml(r.customer_name || '—') + platformBadge + '</td>' +
+            '<td class="p-2"><span class="px-2 py-1 rounded text-xs font-bold ' + statusClass + '">' + escapeHtml(r.status) + '</span></td>' +
+            '<td class="p-2 text-xs">' + escapeHtml(formatDate(r.created_at)) + '</td>' +
+            '<td class="p-2 text-right">' +
+            '<button onclick="openEditReview(' + r.review_id + ')" class="text-blue-600 hover:underline text-xs mr-2">Edit</button>' +
+            '<button onclick="deleteReview(' + r.review_id + ')" class="text-red-600 hover:underline text-xs mr-2">Delete</button>' +
+            (r.status === 'Pending' ? '<button onclick="approveReviewNow(' + r.review_id + ', true)" class="text-green-600 hover:underline text-xs mr-2">Approve</button>' +
+             '<button onclick="approveReviewNow(' + r.review_id + ', false)" class="text-gray-600 hover:underline text-xs">Reject</button>' : '') +
+            '</td></tr>';
+    }).join('');
+    
+    el.innerHTML = '<div class="flex justify-between items-center mb-4">' +
+        '<h2 class="font-anton text-3xl mb-4">Reviews (' + filtered.length + ')</h2>' +
+        '<button onclick="openAddReview()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Review</button>' +
+        '</div>' +
+        '<div class="mb-4 flex gap-2">' +
+        '<button onclick="showPage(\'reviews\', \'All\')" class="px-3 py-1 rounded ' + (filterStatus === 'All' ? 'bg-red-600 text-white' : 'border border-gray-300') + ' text-xs font-bold">All</button>' +
+        '<button onclick="showPage(\'reviews\', \'Pending\')" class="px-3 py-1 rounded ' + (filterStatus === 'Pending' ? 'bg-red-600 text-white' : 'border border-gray-300') + ' text-xs font-bold">Pending</button>' +
+        '<button onclick="showPage(\'reviews\', \'Approved\')" class="px-3 py-1 rounded ' + (filterStatus === 'Approved' ? 'bg-red-600 text-white' : 'border border-gray-300') + ' text-xs font-bold">Approved</button>' +
+        '</div>' +
+        (filtered.length ? '<table class="w-full text-sm bg-white rounded-xl border overflow-hidden">' +
+        '<thead><tr class="bg-gray-50"><th class="p-2">Rating</th><th class="p-2">Comment</th><th class="p-2">Customer</th><th class="p-2">Status</th><th class="p-2">Date</th><th class="p-2 text-right">Actions</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table>' : '<div class="text-center py-20 text-gray-400">No reviews</div>');
+}
+
+        async function openAddReview() {
+            const items = await dbQuery('SELECT item_number, title FROM items ORDER BY item_number');
+            const itemOptions = items.map(function(i) { return '<option value="' + i.item_number + '">' + i.item_number + ' - ' + (i.title || '') + '</option>'; }).join('');
+            const platforms = ['Facebook', 'eBay', 'Shopify', 'Google', 'Yelp', 'Other'];
+            const platformOptions = platforms.map(function(p) { return '<option value="' + p + '">' + p + '</option>'; }).join('');
+            const d = new Date();
+            const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            openModal('<h2 class="font-anton text-3xl mb-4">Add Review</h2>' +
+                '<form onsubmit="saveReview(event)" class="space-y-3">' +
+                '<div class="grid grid-cols-2 md:grid-cols-4 gap-3">' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Customer Name *</label><input id="rev-name" required class="w-full border rounded-xl p-2"></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Rating *</label><select id="rev-rating" required class="w-full border rounded-xl p-2">' +
+                '<option value="5">5 Stars</option><option value="4">4 Stars</option><option value="3">3 Stars</option><option value="2">2 Stars</option><option value="1">1 Star</option>' +
+                '</select></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Platform</label><select id="rev-platform" class="w-full border rounded-xl p-2"><option value="">None</option>' + platformOptions + '</select></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Status</label><select id="rev-status" class="w-full border rounded-xl p-2"><option value="Approved" selected>Approved</option><option value="Pending">Pending</option><option value="Rejected">Rejected</option></select></div>' +
+                '</div>' +
+                '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Review Date</label><input id="rev-date" type="date" value="' + today + '" class="w-full border rounded-xl p-2"></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Item (Optional)</label><select id="rev-item" class="w-full border rounded-xl p-2"><option value="">General Store Review</option>' + itemOptions + '</select></div>' +
+                '</div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Comment *</label><textarea id="rev-comment" required class="w-full border rounded-xl p-2" rows="3"></textarea></div>' +
+                '<div class="flex gap-3 pt-2">' +
+                '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+                '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Save Review</button>' +
+                '</div></form>');
+        }
+
+        async function openEditReview(reviewId) {
+            const review = (await dbQuery("SELECT * FROM reviews WHERE review_id = ?", [reviewId]))[0];
+            if (!review) return toast('Review not found');
+            const items = await dbQuery('SELECT item_number, title FROM items ORDER BY item_number');
+            const itemOptions = items.map(function(i) { return '<option value="' + i.item_number + '" ' + (i.item_number == review.item_number ? 'selected' : '') + '>' + i.item_number + ' - ' + (i.title || '') + '</option>'; }).join('');
+            const platforms = ['Facebook', 'eBay', 'Shopify', 'Google', 'Yelp', 'Other'];
+            const platformOptions = platforms.map(function(p) { return '<option value="' + p + '" ' + (review.platform == p ? 'selected' : '') + '>' + p + '</option>'; }).join('');
+            const statusOptions = ['Approved', 'Pending', 'Rejected'].map(function(s) { return '<option value="' + s + '" ' + ((review.status || 'Pending') == s ? 'selected' : '') + '>' + s + '</option>'; }).join('');
+            window.editingReviewId = reviewId;
+            openModal('<h2 class="font-anton text-3xl mb-4">Edit Review</h2>' +
+                '<form onsubmit="updateReview(event)" class="space-y-3">' +
+                '<div class="grid grid-cols-2 md:grid-cols-4 gap-3">' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Customer Name *</label><input id="rev-name" value="' + (review.customer_name || '') + '" required class="w-full border rounded-xl p-2"></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Rating *</label><select id="rev-rating" required class="w-full border rounded-xl p-2">' +
+                '<option value="5" ' + (review.rating == 5 ? 'selected' : '') + '>5 Stars</option>' +
+                '<option value="4" ' + (review.rating == 4 ? 'selected' : '') + '>4 Stars</option>' +
+                '<option value="3" ' + (review.rating == 3 ? 'selected' : '') + '>3 Stars</option>' +
+                '<option value="2" ' + (review.rating == 2 ? 'selected' : '') + '>2 Stars</option>' +
+                '<option value="1" ' + (review.rating == 1 ? 'selected' : '') + '>1 Star</option>' +
+                '</select></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Platform</label><select id="rev-platform" class="w-full border rounded-xl p-2"><option value="">None</option>' + platformOptions + '</select></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Status</label><select id="rev-status" class="w-full border rounded-xl p-2">' + statusOptions + '</select></div>' +
+                '</div>' +
+                '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Review Date</label><input id="rev-date" type="date" value="' + ((review.created_at || '').slice(0, 10)) + '" class="w-full border rounded-xl p-2"></div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Item (Optional)</label><select id="rev-item" class="w-full border rounded-xl p-2"><option value="">General Store Review</option>' + itemOptions + '</select></div>' +
+                '</div>' +
+                '<div><label class="block text-xs font-bold text-gray-600 mb-1">Comment *</label><textarea id="rev-comment" required class="w-full border rounded-xl p-2" rows="3">' + (review.comment || '') + '</textarea></div>' +
+                '<div class="flex gap-3 pt-2">' +
+                '<button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+                '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Update Review</button>' +
+                '</div></form>');
+        }
+
+async function saveReview(e) {
+    e.preventDefault();
+    const review = {
+        customer_name: document.getElementById('rev-name').value.trim(),
+        rating: parseInt(document.getElementById('rev-rating').value),
+        comment: document.getElementById('rev-comment').value.trim(),
+        platform: document.getElementById('rev-platform').value || null,
+        status: (document.getElementById('rev-status') && document.getElementById('rev-status').value) || 'Approved'
+    };
+    if (!review.customer_name || !review.comment) return toast('Customer name and comment required');
+    const itemNum = document.getElementById('rev-item').value || null;
+    const reviewDate = document.getElementById('rev-date').value || null;
+    try {
+        await dbQuery('INSERT INTO reviews (item_number, customer_name, rating, comment, platform, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+            [itemNum, review.customer_name, review.rating, review.comment, review.platform, review.status, reviewDate]);
+        closeModal();
+        toast('Review saved!');
+        showPage('reviews');
+        loadReviewBadge();
+    } catch(err) { toast('Save failed: ' + err.message); }
+}
+
+async function updateReview(e) {
+    e.preventDefault();
+    const review = {
+        customer_name: document.getElementById('rev-name').value.trim(),
+        rating: parseInt(document.getElementById('rev-rating').value),
+        comment: document.getElementById('rev-comment').value.trim(),
+        platform: document.getElementById('rev-platform').value || null,
+        status: (document.getElementById('rev-status') && document.getElementById('rev-status').value) || 'Pending'
+    };
+    if (!review.customer_name || !review.comment) return toast('Customer name and comment required');
+    const itemNum = document.getElementById('rev-item').value || null;
+    const platform = document.getElementById('rev-platform').value || null;
+    const reviewDate = document.getElementById('rev-date').value || null;
+    const args = itemNum ? [itemNum, review.customer_name, review.rating, review.comment, platform, review.status, reviewDate, window.editingReviewId] : 
+                           [review.customer_name, review.rating, review.comment, platform, review.status, reviewDate, window.editingReviewId];
+    const sql = itemNum ? 'UPDATE reviews SET item_number=?, customer_name=?, rating=?, comment=?, platform=?, status=?, created_at=? WHERE review_id=?' :
+                          'UPDATE reviews SET customer_name=?, rating=?, comment=?, platform=?, status=?, created_at=? WHERE review_id=?';
+    try {
+        await dbQuery(sql, args);
+        window.editingReviewId = null;
+        closeModal();
+        toast('Review updated!');
+        showPage('reviews');
+        loadReviewBadge();
+    } catch(err) { toast('Update failed: ' + err.message); }
+}
+
+async function deleteReview(reviewId) {
+    if (!confirm('Delete this review?')) return;
+    try {
+        await dbQuery('DELETE FROM reviews WHERE review_id = ?', [reviewId]);
+        toast('Deleted');
+        showPage('reviews');
+        loadReviewBadge();
+    } catch(e) { toast('Delete failed: ' + e.message); }
+}
+
+async function approveReviewNow(reviewId, approve) {
+    const status = approve ? 'Approved' : 'Rejected';
+    try {
+        await dbQuery('UPDATE reviews SET status = ? WHERE review_id = ?', [status, reviewId]);
+        toast(approve ? 'Review approved!' : 'Review rejected');
+        showPage('reviews');
+        loadReviewBadge();
+    } catch(e) { toast('Update failed: ' + e.message); }
+}
+
+// --- Smart SKU Generator ---
+const SKU_LEGEND_KEY = 'mulligan_sku_legend';
+const SKU_MONTHS = { '01':'January','02':'February','03':'March','04':'April','05':'May','06':'June','07':'July','08':'August','09':'September','10':'October','11':'November','12':'December' };
+let SKU_BRANDS = [];
+
+function getSkuLegend() {
+    try {
+        const raw = localStorage.getItem(SKU_LEGEND_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch (e) { console.warn('Legend load failed', e); }
+    return seedSkuLegend();
+}
+function setSkuLegend(obj) {
+    localStorage.setItem(SKU_LEGEND_KEY, JSON.stringify(obj));
+}
+function seedSkuLegend() {
+    const def = {
+        vendor: {
+            '7D':'7 Diamonds', 'AD':'Adidas', 'AR':'Arjenya', 'BB':'Bad Birdie', 'BHP':'Beverly Hills Polo Club',
+            'BJ':'Bobby Jones', 'BH':'Ben Hogan', 'BR':'Banana Republic', 'BS':'Barstool/UNRL', 'BU':'Bugatchi Uomo',
+            'CA':'Cariloha', 'CB':'Cutter & Buck', 'CH':'Chubbies', 'CO':'Columbia', 'CW':'Callaway',
+            'DE':'Deolax', 'DR':'Donald Ross', 'DU':'Dunning', 'FA':'Fanatics', 'FJ':'FootJoy',
+            'GD':'Greyson & Dunn', 'GF':'G/FORE', 'GG':'Good Good', 'GL':'Graham Luxe', 'GN':'Greg Norman',
+            'GO':'Golf Gods', 'GR':'Greyson', 'HB':'Holderness & Bourne', 'JB':'Jim Beam', 'JC':'J. Campbell',
+            'JH':'J. Hilburn', 'JL':'J.Lindeberg', 'JO':'Johnnie-O', 'LI':'Links', 'LL':'Lofty Llama',
+            'LS':'Linksoul', 'MA':'Marc Asher', 'MJ':'Majestic', 'MV':'Mauvis', 'MZ':'Mizuno',
+            'NF':'North Face', 'NFL':'NFL', 'NK':'Nike', 'NN':'Nat Nast', 'OA':'Oakley',
+            'OG':'Ogio', 'OL':'1 Like No Other', 'OX':'Oxford Golf', 'PA':'Pins & Aces', 'PC':'Pierre Cardin',
+            'PE':'Penguin', 'PG':'Pearly Gates', 'PM':'Peter Millar', 'PR':'Primo', 'PT':'PGA Tour',
+            'PU':'Puma', 'RB':'Robert Barakett', 'RG':'Robert Graham', 'RH':'Rhone', 'RHB':'Rhoback',
+            'RL':'RLX / Ralph Lauren', 'SH':'Shepherd', 'SI':'Simms', 'SP':'Spyder', 'SS':'Sunday Swagger',
+            'ST':'Stitch', 'SU':'Sunice', 'SW':'Swannies', 'TB':'Ted Baker', 'TM':'TravisMathew',
+            'TW':'Tiger Woods', 'UA':'Under Armour', 'UN':'Unknown', 'VV':'Vineyard Vines', 'WM':'William Murray',
+            'PXG':'PXG'
+        },
+        type: {
+            'P':   { label: 'Polo', category: 'Apparel' },
+            'QZ':  { label: 'Quarter Zip', category: 'Apparel' },
+            'S':   { label: 'Shorts', category: 'Apparel' },
+            'PNT': { label: 'Pants', category: 'Apparel' },
+            'H':   { label: 'Hoodie', category: 'Apparel' },
+            'PO':  { label: 'Polo', category: 'Apparel' }
+        },
+        size:   { 'S':'Small', 'M':'Medium', 'L':'Large', 'XL':'XLarge', '2XL':'2XLarge' },
+        source: { 'TS':'Thrift Store', 'GW':'Goodwill', 'SA':'Salvation Army', 'FB':'Facebook Marketplace' }
+    };
+    setSkuLegend(def);
+    return def;
+}
+
+// --- Database-backed persistence for the SKU Legend ---
+// localStorage is used as a fast synchronous cache (getSkuLegend stays sync so
+// parseSmartSku / applySmartSku keep working), but the database is the source of
+// truth so codes survive cache clears and are shared across browsers.
+async function loadLegendFromDb() {
+    try {
+        await dbQuery("CREATE TABLE IF NOT EXISTS sku_legend (field TEXT NOT NULL, code TEXT NOT NULL, label TEXT, category TEXT, PRIMARY KEY (field, code))");
+        // Always start from the full built-in default seed so the standard
+        // brands/types/sizes/sources are guaranteed present, then overlay any
+        // custom rows stored in the database on top.
+        const def = seedSkuLegend();
+        const legend = { vendor: {}, type: {}, size: {}, source: {} };
+        ['vendor', 'type', 'size', 'source'].forEach(function(f) {
+            legend[f] = JSON.parse(JSON.stringify(def[f] || {}));
+        });
+        let rows = [];
+        try { rows = await dbQuery("SELECT field, code, label, category FROM sku_legend"); } catch (e) { rows = []; }
+        rows.forEach(function(r) {
+            if (r.field === 'type') legend.type[r.code] = { label: r.label || '', category: r.category || '' };
+            else legend[r.field][r.code] = r.label || '';
+        });
+        setSkuLegend(legend);
+        await persistLegendToDb(legend);
+        return legend;
+    } catch (e) {
+        console.warn('loadLegendFromDb failed, using cache', e);
+        return getSkuLegend();
+    }
+}
+
+async function persistLegendToDb(legend) {
+    try {
+        const rows = [];
+        ['vendor','type','size','source'].forEach(function(field) {
+            const obj = legend[field] || {};
+            Object.keys(obj).forEach(function(code) {
+                if (field === 'type') rows.push([field, code, obj[code].label, obj[code].category]);
+                else rows.push([field, code, obj[code], '']);
+            });
+        });
+        for (let i = 0; i < rows.length; i++) {
+            await dbQuery("INSERT OR REPLACE INTO sku_legend (field, code, label, category) VALUES (?, ?, ?, ?)", rows[i]);
+        }
+    } catch (e) {
+        console.warn('persistLegendToDb failed', e);
+    }
+}
+// Build the list of brand codes from the live inventory so the compact decoder
+// can split <brand><type><size><price> correctly for every brand.
+async function refreshSkuBrands() {
+    try {
+        const res = await fetch('/api/inventory');
+        if (!res.ok) return;
+        const data = await res.json();
+        const set = {};
+        (data.items || []).forEach(function(i) {
+            const sku = (i.sku || '').trim();
+            const m = sku.match(/^([A-Za-z0-9\-]+)-(2XL|XL|L|M|S)-\d+$/);
+            if (m) set[m[1]] = true;
+            const num = (i.item_number || '').trim();
+            const mm = num.match(/^([A-Za-z0-9\-]+?)(2XL|XL|L|M|S)\d+-\d+$/);
+            if (mm) {
+                let head = mm[1];
+                const kt = ['PO','P','H'];
+                for (let k = 0; k < kt.length; k++) { if (head.endsWith(kt[k]) && head.length > kt[k].length) head = head.slice(0, head.length - kt[k].length); }
+                set[head] = true;
+            }
+        });
+        SKU_BRANDS = Object.keys(set).sort(function(a,b){ return b.length - a.length; });
+    } catch (e) { console.warn('refreshSkuBrands failed', e); }
+}
+
+// Parse a coded SKU: Brand-Type-Size-Month-Price-Source-Tag#
+function parseSmartSku(raw) {
+    if (!raw) return null;
+    raw = String(raw).trim();
+    const legend = getSkuLegend();
+    const r = { raw: raw, unknown: [], segments: [] };
+    // Compact format: <brand><type><size><priceCents>-<tag>  e.g. NKPM5799-114
+    const compact = raw.match(/^([A-Za-z0-9\-]+?)(2XL|XL|L|M|S)(\d+)-(\d+)$/);
+    if (compact) {
+        const head = compact[1];
+        const size = compact[2];
+        const priceCents = parseInt(compact[3], 10) || 0;
+        const tag = compact[4];
+        let brand = head, bestLen = 0, type = '';
+        for (let i = 0; i < SKU_BRANDS.length; i++) {
+            if (head.startsWith(SKU_BRANDS[i]) && SKU_BRANDS[i].length <= head.length && SKU_BRANDS[i].length > bestLen) { brand = SKU_BRANDS[i]; bestLen = SKU_BRANDS[i].length; }
+        }
+        if (brand === head && legend.vendor) {
+            const vendorCodes = Object.keys(legend.vendor);
+            for (let i = 0; i < vendorCodes.length; i++) {
+                const code = vendorCodes[i];
+                if (head.startsWith(code) && code.length <= head.length && code.length > bestLen) { brand = code; bestLen = code.length; }
+            }
+        }
+        if (brand !== head) type = head.slice(brand.length);
+        r.vendorCode = brand;
+        r.vendorLabel = (legend.vendor && (legend.vendor[brand] || legend.vendor[brand.toUpperCase()])) || brand;
+        if (type) {
+            const entry = legend.type && legend.type[type];
+            r.typeCode = type;
+            r.typeLabel = entry ? entry.label : type;
+            r.category = entry ? entry.category : '';
+            if (!entry) r.unknown.push('type:' + type);
+        }
+        r.sizeCode = size;
+        r.sizeLabel = (legend.size && legend.size[size]) || size;
+        if (!(legend.size && legend.size[size])) r.unknown.push('size:' + size);
+        r.price = priceCents / 100;
+        r.tag = tag;
+        r.compact = true;
+        return r;
+    }
+    // Legacy hyphenated format: Brand-Type-Size-Month-Price-Source-Tag#
+    const parts = raw.split('-').map(function(p) { return p.trim(); });
+    r.segments = parts;
+    const b = parts[0];
+    if (b) { r.vendorCode = b; r.vendorLabel = (legend.vendor && legend.vendor[b]) || b; if (!(legend.vendor && legend.vendor[b])) r.unknown.push('vendor:' + b); }
+    const t = parts[1];
+    if (t) {
+        const entry = legend.type && legend.type[t];
+        r.typeCode = t;
+        r.typeLabel = entry ? entry.label : t;
+        r.category = entry ? entry.category : '';
+        if (!entry) r.unknown.push('type:' + t);
+    }
+    const s = parts[2];
+    if (s) { r.sizeCode = s; r.sizeLabel = (legend.size && legend.size[s]) || s; if (!(legend.size && legend.size[s])) r.unknown.push('size:' + s); }
+    const m = parts[3];
+    if (m) { r.monthCode = m; r.monthName = SKU_MONTHS[m] || ''; if (!SKU_MONTHS[m]) r.unknown.push('month:' + m); }
+    const p = parts[4];
+    if (p) { r.price = parseFloat(String(p).replace(/[$,]/g, '')) || 0; }
+    const src = parts[5];
+    if (src) { r.sourceCode = src; r.sourceLabel = (legend.source && legend.source[src]) || src; if (!(legend.source && legend.source[src])) r.unknown.push('source:' + src); }
+    if (parts[6] !== undefined) { r.tag = parts[6]; }
+    return r;
+}
+
+// Spec-compliant parser: [Brand]-[Type]-[Size]-[Month]-[Cost]-[Vendor]-[PurchaseTag]
+// Uses the editable legend (getSkuLegend) so codes can be added/adapted in the SKU Legend page.
+function parseMulliganSKU(skuString) {
+    if (!skuString || typeof skuString !== 'string') return { ok: false, error: 'No SKU provided.' };
+    const raw = skuString.trim();
+    const parts = raw.split('-').map(function(p) { return p.trim(); });
+    if (parts.length === 7 || parts.length === 3) {
+        const legend = getSkuLegend();
+        function tr(map, code) {
+            if (code === '' || code == null) return { code: code, label: '', category: '', found: false };
+            const entry = map && (map[code] || map[String(code).toUpperCase()]);
+            if (entry && typeof entry === 'object') return { code: code, label: entry.label, category: entry.category || '', found: true };
+            if (entry && typeof entry === 'string') return { code: code, label: entry, found: true };
+            return { code: code, label: code, found: false };
+        }
+        const brand = tr(legend.vendor, parts[0]);
+        const type = tr(legend.type, parts[1]);
+        const sizeLabel = (legend.size && legend.size[parts[2]]) || parts[2];
+        const month = parts[3];
+        const costRaw = parts[4];
+        const cost = parseFloat(String(costRaw).replace(/[$,]/g, '')) || 0;
+        const vendor = tr(legend.source, parts[5]);
+        const purchaseTag = parts[6];
+        const unknown = []
+            .concat(parts.length === 3 ? (brand.found ? [] : ['brand:' + brand.code]) : (brand.found ? [] : ['brand:' + brand.code]))
+            .concat(parts.length === 3 ? (type.found ? [] : ['type:' + type.code]) : (type.found ? [] : ['type:' + type.code]))
+            .concat(parts.length === 3 ? [] : (vendor.found ? [] : ['vendor:' + vendor.code]));
+        return {
+            ok: true,
+            raw: raw,
+            brandLabel: brand.label, brandCode: brand.code,
+            vendorLabel: vendor.label, vendorCode: vendor.code,
+            typeLabel: type.label, typeCode: type.code,
+            category: type.category || '',
+            sizeLabel: sizeLabel, sizeCode: parts[2],
+            monthCode: month,
+            price: cost, cost: cost,
+            sourceLabel: vendor.label, sourceCode: vendor.code,
+            tag: purchaseTag, purchaseTag: purchaseTag,
+            unknown: unknown
+        };
+    }
+    return { ok: false, error: 'SKU needs 3 or 7 parts (Brand-Type-Size or Brand-Type-Size-Month-Cost-Vendor-Tag) separated by hyphens. Found ' + parts.length + '.' };
+}
+
+function applySmartSku() {
+    const numEl = document.getElementById('m-num');
+    if (!numEl) return;
+    const raw = numEl.value.trim();
+    if (!raw) return toast('Enter an Item # first');
+    const m = parseMulliganSKU(raw);
+    const p = (m && m.ok) ? m : parseSmartSku(raw);
+    if (!p) { if (m && !m.ok) toast(m.error); return; }
+    // Vendor match against the vendors dropdown (use legend name when available)
+    const vendors = window._vendors || [];
+    let vendorName = p.vendorLabel;
+    const vEntry = (getSkuLegend().vendor || {})[p.vendorCode];
+    if (vEntry && vEntry !== p.vendorLabel) vendorName = vEntry;
+    let match = vendors.find(function(v) { return v.name && vendorName && (v.name.toLowerCase() === vendorName.toLowerCase() || v.name.toLowerCase().indexOf(vendorName.toLowerCase()) !== -1); });
+    if (!match && p.vendorLabel) match = vendors.find(function(v) { return v.name && v.name.toLowerCase().indexOf(p.vendorLabel.toLowerCase()) !== -1; });
+    if (match) { const sel = document.getElementById('m-vendor'); if (sel) sel.value = match.vendor_id; }
+    // Title: "Brand Type - Size"
+    const brand = (p.brandLabel || p.vendorLabel || '').trim();
+    const type = (p.typeLabel || '').trim();
+    const size = (p.sizeLabel || '').trim();
+    let title = [brand, type].filter(Boolean).join(' ');
+    if (size) title += (title ? ' - ' : '') + size;
+    const titleEl = document.getElementById('m-title');
+    if (titleEl) titleEl.value = title;
+    // Category
+    if (p.category) { const cat = document.getElementById('m-cat'); if (cat) cat.value = p.category; }
+    // SKU numeric segment = Cost; Price = Cost with 70% margin, rounded to nearest dollar
+    if (p.price) {
+        const costEl = document.getElementById('m-cost');
+        if (costEl) costEl.value = p.price.toFixed(2);
+        const priceEl = document.getElementById('m-price');
+        if (priceEl) {
+            const price = Math.round(p.price / (1 - 0.70)); // 70% gross margin
+            priceEl.value = price.toFixed(2);
+        }
+    }
+    // Size / Source / Tag#
+    if (document.getElementById('m-size') && p.sizeLabel) document.getElementById('m-size').value = p.sizeLabel;
+    if (document.getElementById('m-source') && p.sourceLabel) document.getElementById('m-source').value = p.sourceLabel;
+    if (document.getElementById('m-tagnum') && p.tag !== undefined) document.getElementById('m-tagnum').value = p.tag;
+    // Date Acquired from month code
+    if (p.monthCode && SKU_MONTHS[p.monthCode]) {
+        const da = document.getElementById('m-date-acquired');
+        if (da) da.value = new Date().getFullYear() + '-' + p.monthCode + '-01';
+    }
+    if (p.unknown.length) toast('Filled — unmapped codes: ' + p.unknown.join(', '));
+    else toast('SKU decoded & form filled');
+}
+
+async function generateDescription() {
+    const btn = document.getElementById('m-gen-desc');
+    const descEl = document.getElementById('m-desc');
+    if (!descEl) return;
+    const val = function(id) { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    // Vendor/brand: read selected option text from the vendor dropdown
+    let brand = '';
+    const vendorSel = document.getElementById('m-vendor');
+    if (vendorSel && vendorSel.selectedIndex >= 0) {
+        const opt = vendorSel.options[vendorSel.selectedIndex];
+        if (opt && opt.value) brand = (opt.text || '').trim();
+    }
+    const payload = {
+        brand: brand,
+        name: val('m-title'),
+        type: val('m-title'),
+        size: val('m-size'),
+        category: val('m-cat'),
+        condition: val('m-con'),
+        price: val('m-price'),
+        title: val('m-title')
+    };
+    const origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+    try {
+        const res = await fetch('/api/admin/generate-description', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || '') },
+            body: JSON.stringify(payload)
+        });
+        let data = {};
+        try { data = await res.json(); } catch (e) { data = {}; }
+        if (res.ok && data && data.description && data.description.trim()) {
+            descEl.value = data.description.trim();
+            toast('Description generated');
+        } else {
+            toast('Could not generate description' + (data && data.error ? ': ' + data.error : ''));
+        }
+    } catch (e) {
+        toast('Could not generate description');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = origText || '✨ Generate description'; }
+    }
+}
+
+function onItemNumberInput() {
+    if (window.editingItemNumber) return; // never auto-overwrite while editing
+    const numEl = document.getElementById('m-num');
+    if (!numEl) return;
+    const raw = numEl.value.trim();
+    if (!raw) return;
+    const compactOk = /^[^-\s]+(2XL|XL|L|M|S)\d+-\d+$/.test(raw);
+    const parts = raw.split('-');
+    const hyphenOk = parts.length >= 5 && /^\d{2}$/.test(parts[3]) && !isNaN(parseFloat(parts[4]));
+    const sevenOk = parts.length === 7;
+    const shortOk = parts.length >= 3;
+    if (compactOk || hyphenOk || sevenOk || shortOk) {
+        applySmartSku();
+    }
+}
+
+function renderLegend(el) {
+    // Open immediately from the local cache/seed so the page never blocks on the
+    // database or an expired session. Then sync from the DB in the background.
+    renderLegendTable(getSkuLegend(), el);
+    loadLegendFromDb().then(function(legend) {
+        if (legend) renderLegendTable(legend, el);
+    }).catch(function(e) { console.warn('Legend DB sync failed', e); });
+}
+
+function renderLegendTable(legend, el) {
+    const fields = [
+        { key: 'vendor', label: 'Brand / Vendor', hasCategory: false },
+        { key: 'type',   label: 'Type / Category', hasCategory: true },
+        { key: 'size',   label: 'Size', hasCategory: false },
+        { key: 'source', label: 'Source', hasCategory: false }
+    ];
+    let html = '<div class="flex justify-between items-center mb-4">' +
+        '<h2 class="font-anton text-3xl">SKU Legend</h2>' +
+        '<button onclick="openAddLegendEntry()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Code</button></div>';
+    html += '<p class="text-sm text-gray-600 mb-4"><b>Primary format (7 parts):</b> <code class="bg-gray-100 px-1 rounded">Brand-Type-Size-Month-Cost-Vendor-Tag</code> &nbsp;e.g. <code class="bg-gray-100 px-1 rounded">TM-P-2XL-2-8.99-TS-333</code> &rarr; TravisMathew · Polo · 2XL · Month 2 · $8.99 · Thrift Store · Tag 333. <br><b>Legacy compact format (existing inventory):</b> <code class="bg-gray-100 px-1 rounded">&lt;Brand&gt;&lt;Type&gt;&lt;Size&gt;&lt;PriceCents&gt;-&lt;Tag#&gt;</code> &nbsp;e.g. <code class="bg-gray-100 px-1 rounded">NKPM5799-114</code> &rarr; Nike · Polo · Medium · $57.99 · Tag 114.</p>';
+    html += '<div class="bg-white rounded-xl border p-4 mb-4"><h3 class="font-bold mb-2 text-gray-700">Test a SKU</h3>' +
+        '<div class="flex gap-2"><input id="legend-test" class="border rounded-xl p-2 flex-1" placeholder="PM-P-XL-07-4.99-GW-333">' +
+        '<button onclick="testLegendSku()" class="bg-gray-800 text-white px-4 py-2 rounded-xl font-bold">Decode</button></div>' +
+        '<div id="legend-test-out" class="mt-3 text-sm"></div></div>';
+    fields.forEach(function(f) {
+        const entries = Object.keys(legend[f.key] || {});
+        let rows = entries.length ? entries.map(function(code) {
+            const e = legend[f.key][code];
+            const label = f.hasCategory ? e.label : e;
+            const cat = f.hasCategory ? e.category : '';
+            return '<tr class="border-t"><td class="p-2 font-mono">' + code + '</td><td class="p-2">' + label + '</td>' +
+                (f.hasCategory ? '<td class="p-2">' + (cat || '—') + '</td>' : '') +
+                '<td class="p-2 text-right"><button onclick="openEditLegendEntry(\'' + f.key + '\',\'' + code.replace(/'/g, "\\'") + '\')" class="text-blue-600 hover:underline text-xs mr-2">Edit</button>' +
+                '<button onclick="deleteLegendEntry(\'' + f.key + '\',\'' + code.replace(/'/g, "\\'") + '\')" class="text-red-600 hover:underline text-xs">Delete</button></td></tr>';
+        }).join('') : '<tr><td colspan="' + (f.hasCategory ? 4 : 3) + '" class="p-3 text-gray-400">No codes yet</td></tr>';
+        html += '<div class="bg-white rounded-xl border mb-3"><div class="p-3 border-b font-bold flex justify-between items-center">' + f.label + ' (' + entries.length + ')' +
+            '<button data-field="' + f.key + '" onclick="openLegendEditor(this.dataset.field, null)" class="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">+ Add</button></div>' +
+            '<table class="w-full text-sm"><thead><tr class="bg-gray-50">' +
+            '<th class="p-2 text-left">Code</th><th class="p-2 text-left">Maps To</th>' +
+            (f.hasCategory ? '<th class="p-2 text-left">Category</th>' : '') + '<th class="p-2"></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    });
+    el.innerHTML = html;
+}
+
+function testLegendSku() {
+    const raw = document.getElementById('legend-test').value.trim();
+    const p = parseSmartSku(raw);
+    const out = document.getElementById('legend-test-out');
+    if (!p) { out.innerHTML = '<span class="text-red-600">Could not parse.</span>'; return; }
+    const rows = [
+        ['Vendor', p.vendorLabel + ' (' + p.vendorCode + ')'],
+        ['Type', p.typeLabel + ' (' + p.typeCode + ')'],
+        ['Category', p.category || '—'],
+        ['Size', p.sizeLabel + ' (' + p.sizeCode + ')'],
+        ['Month', (p.monthName || '?') + ' (' + p.monthCode + ')'],
+        ['Price', p.price != null ? '$' + p.price.toFixed(2) : '—'],
+        ['Source', p.sourceLabel + ' (' + p.sourceCode + ')'],
+        ['Tag#', p.tag !== undefined ? p.tag : '—']
+    ];
+    out.innerHTML = '<div class="bg-gray-50 rounded p-3"><table class="w-full">' +
+        rows.map(function(r) { return '<tr><td class="font-bold text-gray-600 pr-3 py-0.5">' + r[0] + '</td><td>' + r[1] + '</td></tr>'; }).join('') +
+        (p.unknown.length ? '<tr><td class="font-bold text-red-600 pt-2">Unmapped</td><td class="text-red-600 pt-2">' + p.unknown.join(', ') + '</td></tr>' : '') +
+        '</table></div>';
+}
+
+function openAddLegendEntry() { openLegendEditor(null, null); }
+function openEditLegendEntry(field, code) { openLegendEditor(field, code); }
+
+function openLegendEditor(field, code) {
+    const legend = getSkuLegend();
+    const fields = [['vendor','Brand / Vendor'],['type','Type / Category'],['size','Size'],['source','Source']];
+    const cats = ['Clubs','Apparel','Accessories','Balls','Bags','Shoes','Training','Other'];
+    const isType = field === 'type';
+    const cur = (field && code) ? (isType ? legend.type[code] : legend[field][code]) : null;
+    const fieldOptions = fields.map(function(f) { return '<option value="' + f[0] + '" ' + (field === f[0] ? 'selected' : '') + '>' + f[1] + '</option>'; }).join('');
+    const catOptions = cats.map(function(c) { return '<option ' + (cur && cur.category === c ? 'selected' : '') + '>' + c + '</option>'; }).join('');
+    const codeVal = code || '';
+    const labelVal = cur ? (isType ? cur.label : cur) : '';
+    openModal('<h2 class="font-anton text-3xl mb-4">' + (code ? 'Edit' : 'Add') + ' Legend Code</h2>' +
+        '<form onsubmit="saveLegendEntry(event)" class="space-y-3">' +
+        '<input type="hidden" id="leg-field-orig" value="' + (field || '') + '">' +
+        '<input type="hidden" id="leg-code-orig" value="' + codeVal.replace(/"/g, '&quot;') + '">' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Field</label><select id="leg-field" class="w-full border rounded-xl p-2">' + fieldOptions + '</select></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Code *</label><input id="leg-code" value="' + codeVal.replace(/"/g, '&quot;') + '" required class="w-full border rounded-xl p-2" placeholder="e.g. PM"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Maps To *</label><input id="leg-label" value="' + labelVal.replace(/"/g, '&quot;') + '" required class="w-full border rounded-xl p-2" placeholder="e.g. Peter Millar"></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Category (used when Field = Type)</label><select id="leg-cat" class="w-full border rounded-xl p-2"><option value="">— None —</option>' + catOptions + '</select></div>' +
+        '<div class="flex gap-3 pt-2"><button type="button" onclick="closeModal()" class="flex-1 border rounded-xl p-2 hover:bg-gray-50">Cancel</button>' +
+        '<button type="submit" class="flex-[2] bg-red-600 text-white rounded-xl p-2 font-bold hover:bg-red-700">Save</button></div>' +
+        '</form>');
+}
+
+async function saveLegendEntry(e) {
+    e.preventDefault();
+    const legend = getSkuLegend();
+    const origField = document.getElementById('leg-field-orig').value;
+    const origCode = document.getElementById('leg-code-orig').value;
+    const field = document.getElementById('leg-field').value;
+    const code = document.getElementById('leg-code').value.trim().toUpperCase();
+    const label = document.getElementById('leg-label').value.trim();
+    const cat = document.getElementById('leg-cat').value;
+    if (!field || !code || !label) return toast('Code and Maps To are required');
+    if (origField && origCode && (origField !== field || origCode !== code)) {
+        if (legend[origField]) delete legend[origField][origCode];
+    }
+    if (!legend[field]) legend[field] = {};
+    if (field === 'type') legend.type[code] = { label: label, category: cat };
+    else legend[field][code] = label;
+    setSkuLegend(legend);
+    try { await persistLegendToDb(legend); }
+    catch (e) { toast('Save failed: ' + e.message + ' — please log in again.'); showLogin(); return; }
+    closeModal();
+    toast('Legend saved');
+    showPage('legend');
+}
+
+async function deleteLegendEntry(field, code) {
+    if (!confirm('Delete code "' + code + '"?')) return;
+    const legend = getSkuLegend();
+    if (legend[field]) delete legend[field][code];
+    setSkuLegend(legend);
+    try { await persistLegendToDb(legend); }
+    catch (e) { toast('Delete failed: ' + e.message + ' — please log in again.'); showLogin(); return; }
+    showPage('legend');
+}
+
+// --- Contact Messages inbox ---
+function escapeHtmlMsg(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Stronger escape used for all untrusted/DB-backed values injected into innerHTML.
+// Escapes &, <, >, ", and ' to defeat attribute- and tag-breaking XSS.
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Escape a value for safe insertion into an HTML attribute (e.g. input value="").
+function escapeAttr(s) {
+    return escapeHtml(s);
+}
+
+async function renderMessages(el) {
+    let messages = [];
+    try {
+        await dbQuery("CREATE TABLE IF NOT EXISTS contact_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL, subject TEXT, message TEXT, status TEXT DEFAULT 'unread', created_at TEXT DEFAULT (datetime('now')))");
+        messages = await dbQuery("SELECT id, name, email, subject, message, status, created_at FROM contact_messages ORDER BY id DESC");
+    } catch (e) {
+        el.innerHTML = '<div class="text-center py-20 text-red-500">Could not load messages: ' + escapeHtmlMsg(e.message) + '</div>';
+        return;
+    }
+    const unread = messages.filter(function(m) { return m.status !== 'read'; }).length;
+    refreshMessageBadge(unread);
+
+    const rows = messages.map(function(m) {
+        const isUnread = m.status !== 'read';
+        const subject = escapeHtmlMsg(m.subject || '(No subject)');
+        const body = escapeHtmlMsg(m.message || '');
+        const replySubject = encodeURIComponent('Re: ' + (m.subject || 'Your message to Mulligan Market'));
+        return '<div class="bg-white rounded-xl border mb-3 ' + (isUnread ? 'border-l-4 border-l-red-600' : '') + '">' +
+            '<div class="p-4">' +
+                '<div class="flex justify-between items-start gap-4 flex-wrap">' +
+                    '<div>' +
+                        '<div class="font-bold">' + subject + (isUnread ? ' <span class="ml-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">New</span>' : '') + '</div>' +
+                        '<div class="text-sm text-gray-600">' + escapeHtmlMsg(m.name) + ' &lt;<a href="mailto:' + escapeHtmlMsg(m.email) + '" class="text-blue-600 hover:underline">' + escapeHtmlMsg(m.email) + '</a>&gt;</div>' +
+                        '<div class="text-xs text-gray-400">' + formatDate(m.created_at) + '</div>' +
+                    '</div>' +
+                    '<div class="flex gap-2 whitespace-nowrap">' +
+                        '<a href="mailto:' + escapeHtmlMsg(m.email) + '?subject=' + replySubject + '" class="bg-red-600 text-white text-xs px-3 py-1 rounded hover:bg-red-700">Reply</a>' +
+                        (isUnread
+                            ? '<button onclick="setMessageStatus(' + m.id + ', \'read\')" class="border text-xs px-3 py-1 rounded hover:bg-gray-50">Mark read</button>'
+                            : '<button onclick="setMessageStatus(' + m.id + ', \'unread\')" class="border text-xs px-3 py-1 rounded hover:bg-gray-50">Mark unread</button>') +
+                        '<button onclick="deleteMessage(' + m.id + ')" class="text-red-600 hover:underline text-xs px-2">Delete</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="mt-3 text-sm text-gray-800 whitespace-pre-wrap border-t pt-3">' + body + '</div>' +
+            '</div></div>';
+    }).join('');
+
+    el.innerHTML = '<div class="flex justify-between items-center mb-4">' +
+        '<h2 class="font-anton text-3xl">Messages (' + messages.length + (unread ? ' · ' + unread + ' new' : '') + ')</h2>' +
+        '</div>' +
+        (messages.length ? rows : '<div class="text-center py-20 text-gray-400">No messages yet</div>');
+}
+
+async function setMessageStatus(id, status) {
+    try {
+        await dbQuery('UPDATE contact_messages SET status = ? WHERE id = ?', [status, id]);
+        showPage('messages');
+    } catch (e) { toast('Update failed: ' + e.message); }
+}
+
+async function deleteMessage(id) {
+    if (!confirm('Delete this message?')) return;
+    try {
+        await dbQuery('DELETE FROM contact_messages WHERE id = ?', [id]);
+        toast('Message deleted');
+        showPage('messages');
+    } catch (e) { toast('Delete failed: ' + e.message); }
+}
+
+function refreshMessageBadge(count) {
+    const badge = document.getElementById('msg-badge');
+    if (!badge) return;
+    if (count && count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+}
+
+function refreshReviewBadge(count) {
+    const badge = document.getElementById('review-badge');
+    if (!badge) return;
+    if (count && count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+}
+
+async function loadMessageBadge() {
+    try {
+        await dbQuery("CREATE TABLE IF NOT EXISTS contact_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL, subject TEXT, message TEXT, status TEXT DEFAULT 'unread', created_at TEXT DEFAULT (datetime('now')))");
+        const rows = await dbQuery("SELECT COUNT(*) AS c FROM contact_messages WHERE status != 'read'");
+        const count = rows && rows[0] ? (rows[0].c || 0) : 0;
+        refreshMessageBadge(count);
+    } catch (e) { /* non-fatal */ }
+}
+
+async function loadReviewBadge() {
+    try {
+        const rows = await dbQuery("SELECT COUNT(*) AS c FROM reviews WHERE status = 'Pending'");
+        const count = rows && rows[0] ? (rows[0].c || 0) : 0;
+        refreshReviewBadge(count);
+    } catch (e) { /* non-fatal */ }
+}
+
+async function renderVisitors(el) {
+    let payload = { today: { visits: 0, uniqueVisitors: 0 }, last7: [] };
+    try {
+        const res = await fetch('/api/admin/visitors', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || '') } });
+        if (res.ok) payload = await res.json();
+    } catch (e) { console.warn('Visitors API failed:', e.message); }
+    refreshVisitorBadge(payload.today ? payload.today.visits : 0);
+
+    const last7 = payload.last7 || [];
+    const maxVisits = Math.max.apply(Math, last7.map(function(d) { return d.visits || 0; }).concat([1]));
+    const rows = last7.slice().reverse().map(function(d) {
+        const day = d.day ? formatDate(d.day) : '—';
+        const count = d.visits || 0;
+        const pct = maxVisits > 0 ? (count / maxVisits * 100) : 0;
+        return '<tr class="border-t"><td class="p-2 text-sm">' + day + '</td>' +
+            '<td class="p-2 font-bold">' + count + '</td>' +
+            '<td class="p-2"><div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden"><div class="bg-red-600 h-2 rounded-full" style="width:' + Math.max(2, pct) + '%"></div></div></td></tr>';
+    }).join('');
+
+    el.innerHTML =
+        '<h2 class="font-anton text-3xl mb-4">Visitor Tracking</h2>' +
+        '<p class="text-sm text-gray-600 mb-4">Anonymized, privacy-friendly visit counts (raw IPs are never stored — only a per-day salted hash).</p>' +
+        '<a href="https://dash.cloudflare.com/?to=/:account/analytics/web" target="_blank" rel="noopener" class="flex items-center justify-between gap-3 bg-white border rounded-xl p-4 mb-6 hover:border-red-600 transition">' +
+            '<div>' +
+                '<div class="font-bold text-gray-800">Cloudflare Web Analytics</div>' +
+                '<div class="text-xs text-gray-500">Full traffic, page, and engagement analytics</div>' +
+            '</div>' +
+            '<span class="text-red-600 text-sm font-bold whitespace-nowrap">Open ↗</span>' +
+        '</a>' +
+        '<div class="grid grid-cols-2 gap-4 mb-6">' +
+            '<div class="bg-white p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Visits (Last 4 Hours)</div><div class="text-3xl font-bold">' + (payload.today ? payload.today.visits : 0) + '</div></div>' +
+            '<div class="bg-white p-4 rounded-xl border"><div class="text-xs text-gray-500 uppercase">Unique Visitors (Last 4 Hours)</div><div class="text-3xl font-bold">' + (payload.today ? payload.today.uniqueVisitors : 0) + '</div></div>' +
+        '</div>' +
+        '<div class="bg-white rounded-xl border p-6">' +
+            '<div class="p-3 border-b font-bold mb-4">Last 7 Days</div>' +
+            (rows ? '<table class="w-full text-sm rounded-xl overflow-hidden"><thead><tr class="bg-gray-50"><th class="p-2 text-left">Day</th><th class="p-2">Visits</th><th class="p-2 text-left">Trend</th></tr></thead><tbody>' + rows + '</tbody></table>' : '<div class="text-center py-12 text-gray-400">No visit data yet</div>') +
+        '</div>';
+}
+
+function refreshVisitorBadge(count) {
+    const badge = document.getElementById('visitor-badge');
+    if (!badge) return;
+    if (count && count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+}
+
+async function loadVisitorBadge() {
+    try {
+        const res = await fetch('/api/admin/visitors', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || '') } });
+        if (!res.ok) return;
+        const data = await res.json();
+        refreshVisitorBadge(data && data.today ? (data.today.visits || 0) : 0);
+    } catch (e) { /* non-fatal */ }
+}
+
+// --- Clubhouse Subscribers ---
+window._subscribers = [];
+
+async function renderSubscribers(el) {
+    let subs = [];
+    try {
+        await dbQuery("CREATE TABLE IF NOT EXISTS subscribers (email TEXT PRIMARY KEY, created_at TEXT DEFAULT (datetime('now')), source TEXT)");
+        subs = await dbQuery("SELECT email, created_at, source FROM subscribers ORDER BY created_at DESC");
+    } catch (e) {
+        el.innerHTML = '<div class="text-center py-20 text-red-500">Could not load subscribers: ' + escapeHtmlMsg(e.message) + '</div>';
+        return;
+    }
+    window._subscribers = subs;
+
+    const rows = subs.map(function(s) {
+        return '<tr class="border-t">' +
+            '<td class="p-2"><a href="mailto:' + escapeHtmlMsg(s.email) + '" class="text-blue-600 hover:underline">' + escapeHtmlMsg(s.email) + '</a></td>' +
+            '<td class="p-2 text-gray-600">' + formatDate(s.created_at) + '</td>' +
+            '<td class="p-2 text-gray-600">' + escapeHtmlMsg(s.source || '—') + '</td>' +
+            '<td class="p-2 text-right"><button onclick="deleteSubscriber(\'' + escapeHtmlMsg(s.email).replace(/'/g, "\\'") + '\')" class="text-red-600 hover:underline text-xs">Delete</button></td>' +
+            '</tr>';
+    }).join('');
+
+    el.innerHTML = '<div class="flex justify-between items-center mb-4 flex-wrap gap-3">' +
+        '<h2 class="font-anton text-3xl">Subscribers (' + subs.length + ')</h2>' +
+        '<div class="flex gap-2">' +
+            '<button onclick="copySubscribers()" class="border rounded-xl px-4 py-2 text-sm font-bold hover:bg-gray-50">Copy all emails</button>' +
+            '<button onclick="exportSubscribersCsv()" class="bg-red-600 text-white rounded-xl px-4 py-2 text-sm font-bold hover:bg-red-700">Export CSV</button>' +
+        '</div></div>' +
+        '<p class="text-sm text-gray-600 mb-4">Emails collected from the "Join The Clubhouse" form. Use "Copy all emails" or "Export CSV" to load them into your email newsletter tool.</p>' +
+        (subs.length
+            ? '<div class="bg-white rounded-xl border overflow-x-auto"><table class="w-full text-sm"><thead><tr class="bg-gray-50"><th class="p-2 text-left">Email</th><th class="p-2 text-left">Joined</th><th class="p-2 text-left">Source</th><th class="p-2"></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+            : '<div class="text-center py-20 text-gray-400">No subscribers yet</div>');
+}
+
+function copySubscribers() {
+    const emails = (window._subscribers || []).map(function(s) { return s.email; }).join(', ');
+    if (!emails) return toast('No subscribers to copy');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(emails).then(function() { toast('Copied ' + (window._subscribers || []).length + ' emails'); },
+            function() { toast('Copy failed — try Export CSV'); });
+    } else {
+        toast('Clipboard not available — use Export CSV');
+    }
+}
+
+function exportSubscribersCsv() {
+    const subs = window._subscribers || [];
+    if (!subs.length) return toast('No subscribers to export');
+    let csv = 'email,joined,source\n';
+    subs.forEach(function(s) {
+        const email = '"' + String(s.email || '').replace(/"/g, '""') + '"';
+        const joined = '"' + String(s.created_at || '').replace(/"/g, '""') + '"';
+        const source = '"' + String(s.source || '').replace(/"/g, '""') + '"';
+        csv += email + ',' + joined + ',' + source + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'subscribers-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+async function deleteSubscriber(email) {
+    if (!confirm('Remove ' + email + ' from subscribers?')) return;
+    try {
+        await dbQuery('DELETE FROM subscribers WHERE email = ?', [email]);
+        toast('Subscriber removed');
+        showPage('subscribers');
+    } catch (e) { toast('Delete failed: ' + e.message); }
+}
+
+// System Status Functions
+function updateSystemStatus(connected) {
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    if (!dot || !text) return;
+    if (connected) {
+        dot.className = 'w-2 h-2 rounded-full bg-green-500';
+        text.textContent = 'Online';
+        text.className = 'text-xs text-green-400';
+    } else {
+        dot.className = 'w-2 h-2 rounded-full bg-red-500';
+        text.textContent = 'Offline';
+        text.className = 'text-xs text-red-400';
+    }
+}
+
+async function renderSalesMap() {
+    const mapContainer = document.getElementById('sales-map');
+    if (!mapContainer) return;
+    
+    const orders = await dbQuery("SELECT * FROM orders ORDER BY id DESC");
+    const orderData = orders.map(function(o) {
+        const data = typeof o.data === 'string' ? (function() { try { return JSON.parse(o.data); } catch(e) { return {}; } })() : (o.data || {});
+        return {
+            id: o.id,
+            total: parseFloat(o.total || 0),
+            address: data.shipping_address || '',
+            customer: data.customer_name || ''
+        };
+    });
+    
+    const stateCoords = {
+        'CA': [34.0522, -118.2437], 'NY': [40.7128, -74.0060], 'TX': [31.0859, -100.1029],
+        'FL': [27.9944, -82.7504], 'WA': [47.6062, -122.3321], 'IL': [41.8781, -87.6298],
+        'PA': [39.9526, -75.1652], 'OH': [39.9612, -82.9988], 'GA': [33.7490, -84.3880],
+        'NC': [35.7796, -78.6382], 'MI': [42.3314, -83.0458], 'NJ': [40.7306, -74.1729],
+        'VA': [37.4316, -78.6569], 'AZ': [33.4484, -112.0740], 'TN': [36.1627, -86.7816],
+        'MA': [42.3601, -71.0589], 'IN': [39.7684, -86.1581], 'MO': [38.6270, -92.1926],
+        'MD': [38.9072, -77.0369], 'WI': [43.0731, -89.4012], 'MN': [44.9778, -93.2650],
+        'CO': [39.7392, -104.9903], 'AL': [32.5367, -86.6447], 'SC': [33.9982, -80.8397],
+        'LA': [30.0513, -91.9495], 'KY': [38.2527, -85.7585], 'WV': [38.9112, -79.6499],
+        'AR': [35.2011, -92.4442], 'IA': [41.8780, -93.0791], 'MS': [32.2988, -89.7810],
+        'NM': [35.6870, -105.9378], 'OK': [35.4676, -97.5164], 'ID': [43.6151, -116.2023],
+        'HI': [21.3069, -157.8583], 'AK': [61.2181, -156.7682], 'DC': [38.9072, -77.0369],
+        'NV': [36.1699, -115.1398], 'UT': [40.7608, -111.8910], 'MT': [46.8717, -110.3654],
+        'ND': [46.8292, -100.7836], 'SD': [44.3683, -100.3579], 'NE': [41.2565, -99.6712],
+        'KS': [39.0997, -95.6791], 'ME': [44.3106, -69.7719], 'NH': [43.2061, -71.5373],
+        'VT': [44.4682, -72.7178], 'WY': [43.0757, -107.2921], 'DE': [38.9108, -75.5210],
+        'RI': [41.8240, -71.4128], 'CT': [41.7637, -72.6851], 'NJ': [40.7306, -74.1729]
+    };
+    
+ const stateStats = {};
+        orderData.forEach(function(o) {
+            const addr = (o.address || '').toLowerCase();
+            // Match the first state abbreviation found in the address (standalone
+            // word only) so each order counts toward exactly one location.
+            let matched = null;
+            for (const state of Object.keys(stateCoords)) {
+                const stateAbbr = state.toLowerCase();
+                const regex = new RegExp('\\b' + stateAbbr + '\\b', 'i');
+                if (regex.test(addr)) { matched = state; break; }
+            }
+            if (!matched) return;
+            if (!stateStats[matched]) stateStats[matched] = { count: 0, revenue: 0 };
+            stateStats[matched].count += 1;
+            stateStats[matched].revenue += (parseFloat(o.total) || 0);
+        });
+
+    const map = L.map('sales-map').setView([39.8283, -98.5795], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    Object.keys(stateStats).forEach(function(state) {
+        const coords = stateCoords[state];
+        if (!coords) return;
+        const st = stateStats[state];
+        const marker = L.marker(coords).addTo(map);
+        marker.bindPopup('<b>' + state + '</b><br>Sales: ' + st.count + '<br>Revenue: $' + st.revenue.toFixed(2)).openPopup();
+    });
+}
+
+init();
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2013395a9fc768d',t:'MTc4NDg3ODAzNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
