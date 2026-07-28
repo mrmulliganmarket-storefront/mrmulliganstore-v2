@@ -222,8 +222,8 @@ async function buildDashboard() {
     // subscriptions, ad spend, etc. logged in the expenses table).
     { sql: "SELECT COALESCE(SUM(amount),0) as expenses FROM expenses WHERE expense_date LIKE ?", args: [currentMonth + "%"] },
     { sql: "SELECT COALESCE(SUM(amount),0) as expenses FROM expenses WHERE expense_date >= ?", args: [currentMonth.slice(0, 4) + "-01-01"] },
-    // Top 5 selling brands by items sold (extracted from SKU first segment or item title first word)
-    { sql: "SELECT CASE WHEN sku IS NOT NULL AND sku != '' AND instr(sku, '-') > 0 THEN substr(sku, 1, instr(sku, '-') - 1) WHEN title IS NOT NULL AND title != '' THEN substr(title, 1, instr(title || ' ', ' ') - 1) ELSE 'Unknown' END as brand, COUNT(*) as items_sold, COALESCE(SUM(price),0) as revenue FROM items WHERE status='Sold' GROUP BY brand ORDER BY items_sold DESC LIMIT 5" },
+    // Top 10 selling brands by items sold (extracted from SKU first segment or item title first word)
+    { sql: "SELECT CASE WHEN sku IS NOT NULL AND sku != '' AND instr(sku, '-') > 0 THEN substr(sku, 1, instr(sku, '-') - 1) WHEN title IS NOT NULL AND title != '' THEN substr(title, 1, instr(title || ' ', ' ') - 1) ELSE 'Unknown' END as brand, COUNT(*) as items_sold, COALESCE(SUM(price),0) as revenue FROM items WHERE status='Sold' GROUP BY brand ORDER BY items_sold DESC LIMIT 10" },
     // Top 5 selling item titles by units sold
     { sql: "SELECT title, COUNT(*) as items_sold, COALESCE(SUM(price),0) as revenue FROM items WHERE status='Sold' AND title IS NOT NULL AND title != '' GROUP BY title ORDER BY items_sold DESC LIMIT 5" },
     // Top 5 selling sizes by units sold (derived from title text without relying on a missing size column)
