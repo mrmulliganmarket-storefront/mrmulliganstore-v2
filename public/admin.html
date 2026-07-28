@@ -2119,7 +2119,7 @@ function renderLegendTable(legend, el) {
         '<h2 class="font-anton text-3xl">SKU Legend</h2>' +
         '<div class="flex items-center gap-2">' +
         '<button onclick="exportLegendCSV()" class="bg-green-600 text-white px-3 py-2 rounded-xl font-bold hover:bg-green-700 text-sm">Export CSV</button>' +
-        '<button onclick="openAddLegendEntry()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Code</button></div>';
+        '<button onclick="openAddLegendEntry()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700">+ Add Code</button></div></div>';
     html += '<p class="text-sm text-gray-600 mb-4"><b>Primary format (7 parts):</b> <code class="bg-gray-100 px-1 rounded">Brand-Type-Size-Month-Cost-Vendor-Tag</code> &nbsp;e.g. <code class="bg-gray-100 px-1 rounded">TM-P-2XL-2-8.99-TS-333</code> &rarr; TravisMathew · Polo · 2XL · Month 2 · $8.99 · Thrift Store · Tag 333. <br><b>Legacy compact format (existing inventory):</b> <code class="bg-gray-100 px-1 rounded">&lt;Brand&gt;&lt;Type&gt;&lt;Size&gt;&lt;PriceCents&gt;-&lt;Tag#&gt;</code> &nbsp;e.g. <code class="bg-gray-100 px-1 rounded">NKPM5799-114</code> &rarr; Nike · Polo · Medium · $57.99 · Tag 114.</p>';
     html += '<div class="bg-white rounded-xl border p-4 mb-4"><h3 class="font-bold mb-2 text-gray-700">Test a SKU</h3>' +
         '<div class="flex gap-2"><input id="legend-test" class="border rounded-xl p-2 flex-1" placeholder="PM-P-XL-07-4.99-GW-333">' +
