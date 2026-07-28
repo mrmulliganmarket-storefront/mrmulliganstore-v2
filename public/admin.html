@@ -523,6 +523,9 @@ async function renderDashboard(el) {
     const topBrandsRevenue = topBrands.reduce(function(sum,b){return sum+(parseFloat(b.revenue||b.profit||0));},0);
     const topBrandsAvgRevenue = topBrands.length ? (topBrandsRevenue/topBrands.length) : 0;
     const topBrandsMaxRevenue = Math.max.apply(Math, topBrands.map(function(b){return Math.max(0, parseFloat(b.revenue||b.profit||0));}).concat([1]));
+    // Map abbreviations to full brand names using the SKU legend
+    const legend = getSkuLegend();
+    const brandLabel = function(name) { return (legend.vendor || {})[name] || name; };
 
     const progressPercent = goal.items > 0 ? Math.min(100, (soldItems / goal.items) * 100) : soldItems > 0 ? 100 : 0;
     const profitGoalPercent = goal.profit > 0 ? Math.min(100, (monthlyProfit / goal.profit) * 100) : monthlyProfit > 0 ? 100 : 0;
@@ -585,11 +588,11 @@ el.innerHTML = '<div class="grid grid-cols-4 gap-4 mb-4">' +
         '<div class="flex items-end h-48 gap-2">' +
         (topBrands.length ? topBrands.map(function(b) {
             const pct = topBrandsMaxRevenue > 0 ? (Math.max(0, parseFloat(b.revenue || b.profit || 0)) / topBrandsMaxRevenue * 100) : 0;
-            return '<div class="flex-1 bg-purple-500 rounded-t flex flex-col justify-end items-center" style="height:' + Math.max(4, pct) + '%; min-height:4px;" title="' + escapeHtml(b.name || 'Unnamed') + '\nRevenue: $' + parseFloat(b.revenue || b.profit || 0).toFixed(2) + '\nItems: ' + (b.items_sold || 0) + '"><span class="text-[10px] text-white font-bold pb-1">$' + Math.round(parseFloat(b.revenue || b.profit || 0)) + '</span></div>';
+            return '<div class="flex-1 bg-purple-500 rounded-t flex flex-col justify-end items-center" style="height:' + Math.max(4, pct) + '%; min-height:4px;" title="' + escapeHtml(brandLabel(b.name) || 'Unnamed') + '\nRevenue: $' + parseFloat(b.revenue || b.profit || 0).toFixed(2) + '\nItems: ' + (b.items_sold || 0) + '"><span class="text-[10px] text-white font-bold pb-1">$' + Math.round(parseFloat(b.revenue || b.profit || 0)) + '</span></div>';
         }).join('') : '<div class="text-gray-400">No sales yet</div>') +
         '</div>' +
         '<div class="flex gap-2 mt-2">' +
-        (topBrands.length ? topBrands.map(function(b) { return '<div class="flex-1 text-center text-[10px] text-gray-500 truncate">' + escapeHtml(b.name || 'Uncat.') + '</div>'; }).join('') : '') +
+        (topBrands.length ? topBrands.map(function(b) { return '<div class="flex-1 text-center text-[10px] text-gray-500 truncate">' + escapeHtml(brandLabel(b.name) || 'Uncat.') + '</div>'; }).join('') : '') +
         '</div>' +
         '</div>' +
 
