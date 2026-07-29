@@ -256,29 +256,29 @@
         </div>
     </div>
 
-    <div id="item-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
-        <div class="bg-gray-900 rounded-3xl w-full max-w-3xl border border-gray-600">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-0 items-start">
-                <div class="relative bg-black rounded-l-3xl overflow-hidden">
-                    <img id="modal-main-image" src="" class="w-full aspect-square object-cover" onerror="this.src=typeof imageApiUrl==='function'?imageApiUrl(document.getElementById('modal-title').textContent||''):'/api/image?item='+encodeURIComponent((document.getElementById('modal-title').textContent||''));this.onerror=null;">
-                    <button onclick="prevImage()" class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl font-bold backdrop-blur-sm hidden">&lt;</button>
-                    <button onclick="nextImage()" class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl font-bold backdrop-blur-sm hidden">&gt;</button>
-                    <div id="image-dots" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2"></div>
+<div id="item-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-2 sm:p-4">
+	        <div class="bg-gray-900 rounded-3xl w-full max-w-3xl border border-gray-600 overflow-hidden">
+	            <div class="grid grid-cols-1 md:grid-cols-2 gap-0 items-start">
+	                <div class="relative bg-black aspect-square md:aspect-auto md:min-h-[300px]">
+                    <img id="modal-main-image" src="" class="w-full h-full object-contain" onerror="this.src=typeof imageApiUrl==='function'?imageApiUrl(document.getElementById('modal-title').textContent||''):'/api/image?item='+encodeURIComponent((document.getElementById('modal-title').textContent||''));this.onerror=null;">
+                    <button onclick="prevImage()" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-sm sm:text-xl font-bold backdrop-blur-sm">&lt;</button>
+                    <button onclick="nextImage()" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-sm sm:text-xl font-bold backdrop-blur-sm">&gt;</button>
+                    <div id="image-dots" class="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2"></div>
                 </div>
                     <div class="p-5 flex flex-col relative">
                         <button onclick="closeItemModal()" class="absolute top-2 right-3 text-gray-400 hover:text-white p-1 text-2xl leading-none">&times;</button>
                         <div class="flex-1">
                             <p id="modal-category" class="text-red-500 text-xs font-bold tracking-widest uppercase mb-1"></p>
-                            <h3 id="modal-title" class="font-black text-xl md:text-2xl text-white leading-tight mb-2"></h3>
-                            <p id="modal-price" class="font-black text-2xl text-white mb-3"></p>
+                            <h3 id="modal-title" class="font-black text-base sm:text-lg md:text-xl text-white leading-tight mb-2"></h3>
+                            <p id="modal-price" class="font-black text-lg sm:text-xl text-white mb-2 sm:mb-3"></p>
                             <p id="modal-description" class="text-gray-300 mb-4 leading-relaxed text-sm"></p>
                         </div>
                         <div class="flex gap-2 mt-auto">
-                            <button onclick="addToCartFromModal(); closeItemModal();" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-1.5 rounded-full transition flex items-center justify-center gap-1.5 text-xs">
+                            <button onclick="addToCartFromModal(); closeItemModal();" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 sm:py-1.5 rounded-full transition flex items-center justify-center gap-1.5 text-xs sm:text-sm">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"></path></svg>
                                 ADD TO CART
                             </button>
-                            <button onclick="closeItemModal()" class="flex-1 border border-gray-700 text-white rounded-full hover:bg-gray-800 transition flex items-center justify-center gap-1.5 text-xs py-1.5">
+                            <button onclick="closeItemModal()" class="flex-1 border border-gray-700 text-white rounded-full hover:bg-gray-800 transition flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 sm:py-1.5">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                                 BACK TO GEAR
                             </button>
