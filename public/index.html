@@ -135,7 +135,7 @@
         <section id="sold-section" class="container mx-auto px-4 py-8 hidden">
             <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                 <div class="pl-[20px]">
-                    <h2 class="font-anton tracking-tight"><span class="text-black text-5xl">SOLD</span>&nbsp;&nbsp;&nbsp;<span class="text-red-600 text-5xl">GEAR</span></h2>
+                    <h2 class="font-anton tracking-tight text-black text-5xl">Recently Sold</h2>
                 </div>
             </div>
             <div id="sold-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
@@ -505,7 +505,7 @@
             }
             section.classList.remove('hidden');
             const html = [];
-            for (let i = 0; i < items.length; i++) {
+            for (let i = 0; i < Math.min(items.length, 8); i++) {
                 const item = items[i];
                 const itemNum = item.item_number || '';
                 const imgUrl = imageApiUrl(itemNum);
