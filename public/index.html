@@ -128,11 +128,7 @@
                      <option value="">All Categories</option>
                  </select>
 <select id="filter-condition" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
-                         <option value="New">New</option>
-                         <option value="Excellent">Excellent</option>
-                         <option value="Good">Good</option>
-                         <option value="Fair">Fair</option>
-                     </select>
+                      </select>
                  <select id="filter-price" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
                      <option value="">All Prices</option>
                  </select>
@@ -553,33 +549,35 @@ function showCurated(view) {
              if (sortEl) sortEl.addEventListener('change', function() { filterSort = this.value; currentPage = 1; updateFilterBarVisibility(); renderItems(getFilteredItems()); });
          }
 
-         function populateFilterDropdowns() {
-             const catEl = document.getElementById('filter-category');
-             const condEl = document.getElementById('filter-condition');
-             const priceEl = document.getElementById('filter-price');
-             if (!catEl || !condEl || !priceEl) return;
+function populateFilterDropdowns() {
+              const catEl = document.getElementById('filter-category');
+              const condEl = document.getElementById('filter-condition');
+              const priceEl = document.getElementById('filter-price');
+              if (!catEl || !condEl || !priceEl) return;
 
-             const categories = {};
-             const conditions = {};
-             const priceRanges = {};
-             (allItems || []).forEach(function(i) {
-                 if (i.category) categories[i.category.toLowerCase()] = i.category;
-                 if (i.condition) conditions[i.condition.toLowerCase()] = i.condition;
-                 const p = parseFloat(i.price) || 0;
-                 let range;
-                 if (p < 25) range = 'Under $25';
-                 else if (p < 50) range = '$25 - $49.99';
-                 else if (p < 100) range = '$50 - $99.99';
-                 else if (p < 200) range = '$100 - $199.99';
-                 else range = '$200+';
-                 priceRanges[range] = range;
-             });
+              const categories = {};
+              const conditions = {};
+              const priceRanges = {};
+              (allItems || []).forEach(function(i) {
+                  if (i.category) categories[i.category.toLowerCase()] = i.category;
+                  if (i.condition) conditions[i.condition.toLowerCase()] = i.condition;
+                  const p = parseFloat(i.price) || 0;
+                  let range;
+                  if (p < 25) range = 'Under $25';
+                  else if (p < 50) range = '$25 - $49.99';
+                  else if (p < 100) range = '$50 - $99.99';
+                  else if (p < 200) range = '$100 - $199.99';
+                  else range = '$200+';
+                  priceRanges[range] = range;
+              });
 
-             Object.keys(categories).sort().forEach(function(k) { catEl.innerHTML += '<option value="' + categories[k] + '">' + categories[k] + '</option>'; });
-             Object.keys(conditions).sort().forEach(function(k) { condEl.innerHTML += '<option value="' + conditions[k] + '">' + conditions[k] + '</option>'; });
-             const priceOrder = ['Under $25', '$25 - $49.99', '$50 - $99.99', '$100 - $199.99', '$200+'];
-             priceOrder.forEach(function(r) { if (priceRanges[r]) priceEl.innerHTML += '<option value="' + r + '">' + r + '</option>'; });
-         }
+              catEl.innerHTML = '';
+              Object.keys(categories).sort().forEach(function(k) { catEl.innerHTML += '<option value="' + categories[k] + '">' + categories[k] + '</option>'; });
+              condEl.innerHTML = '<option value="">All Conditions</option>';
+              Object.keys(conditions).sort().forEach(function(k) { condEl.innerHTML += '<option value="' + conditions[k] + '">' + conditions[k] + '</option>'; });
+              const priceOrder = ['Under $25', '$25 - $49.99', '$50 - $99.99', '$100 - $199.99', '$200+'];
+              priceOrder.forEach(function(r) { if (priceRanges[r]) priceEl.innerHTML += '<option value="' + r + '">' + r + '</option>'; });
+          }
 
         function renderItems(items) {
             const container = document.getElementById('items-container');
