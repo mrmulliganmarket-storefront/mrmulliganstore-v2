@@ -455,9 +455,10 @@ function getViewItems() {
                  case 'title': items = items.slice().sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); }); break;
                  default: items = items.slice().sort(function(a, b) { return String(b.date_listed || '').localeCompare(String(a.date_listed || '')); });
              }
-             if (currentView === 'new') {
-                 return items;
-             }
+if (currentView === 'new') {
+                  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                  return items.filter(function(i) { return (i.date_listed || '') >= cutoff; });
+              }
              if (currentView === 'featured') {
                  return items.filter(function(i) { return i.featured; });
              }
