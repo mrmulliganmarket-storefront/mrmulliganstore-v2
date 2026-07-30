@@ -686,15 +686,74 @@ function showCurated(view) {
             toast('Added to cart');
         }
 
-        function removeFromCart(itemNumber) {
-            let cart = getCart();
-            cart = cart.filter(i => i.item_number !== itemNumber);
-            saveCart(cart);
-            updateCartCount();
-            renderCart();
-        }
+function removeFromCart(itemNumber) {
+             let cart = getCart();
+             cart = cart.filter(i => i.item_number !== itemNumber);
+             saveCart(cart);
+             updateCartCount();
+             renderCart();
+         }
 
-        function getCartTotal() {
+         function getSavedLater() {
+             try {
+                 const s = localStorage.getItem('mulliganSaved');
+                 return s ? JSON.parse(s) : [];
+             } catch(e) { return []; }
+         }
+
+         function saveSavedLater(items) {
+             localStorage.setItem('mulliganSaved', JSON.stringify(items));
+         }
+
+         function updateCartQuantity(itemNumber, delta) {
+             const cart = getCart();
+             const item = cart.find(i => i.item_number === itemNumber);
+             if (!item) return;
+             const newQty = (item.quantity || 1) + delta;
+             if (newQty <= 0) {
+                 removeFromCart(itemNumber);
+                 return;
+             }
+             item.quantity = newQty;
+             saveCart(cart);
+             updateCartCount();
+             renderCart();
+         }
+
+         function saveForLater(itemNumber) {
+             const cart = getCart();
+             const idx = cart.findIndex(i => i.item_number === itemNumber);
+             if (idx === -1) return;
+             const item = cart.splice(idx, 1)[0];
+             saveCart(cart);
+             const saved = getSavedLater();
+             saved.push(item);
+             saveSavedLater(saved);
+             updateCartCount();
+             renderCart();
+             toast('Moved to saved items');
+         }
+
+         function moveToCart(itemNumber) {
+             const saved = getSavedLater();
+             const idx = saved.findIndex(i => i.item_number === itemNumber);
+             if (idx === -1) return;
+             const item = saved.splice(idx, 1)[0];
+             saveSavedLater(saved);
+             const cart = getCart();
+             const existing = cart.find(i => i.item_number === item.item_number);
+             if (existing) {
+                 existing.quantity = (existing.quantity || 0) + (item.quantity || 1);
+             } else {
+                 cart.push(item);
+             }
+             saveCart(cart);
+             updateCartCount();
+             renderCart();
+             toast('Moved to cart');
+         }
+
+         function getCartTotal() {
             const cart = getCart();
             const subtotal = cart.reduce((sum, i) => sum + (i.price * (i.quantity || 1)), 0);
             const itemCount = cart.reduce((sum, i) => sum + (i.quantity || 1), 0);
@@ -777,25 +836,38 @@ function showCurated(view) {
             return false;
         }
 
-        function renderCart() {
-            const cart = getCart();
-            const cartBody = document.getElementById('cart-body');
-            if (!cart.length) {
-                cartBody.innerHTML = '<p class="text-gray-400 text-center py-8">Your cart is empty</p>';
-                return;
-            }
-            let html = '<table class="w-full text-sm"><thead><tr class="border-b border-gray-200"><th class="text-left pb-2 text-[#0070BA]">Item</th><th class="text-right pb-2 text-[#0070BA]">Price</th><th class="text-right pb-2 text-[#0070BA]">Qty</th><th class="text-right pb-2 text-[#0070BA]">Subtotal</th><th class="text-right pb-2"></th></tr></thead><tbody>';
-            cart.forEach(i => {
-                html += '<tr class="border-t border-gray-100"><td class="py-2 truncate max-w-32 text-gray-800">' + escapeHtml(i.title) + '</td><td class="text-right py-2 text-gray-800">$' + i.price.toFixed(2) + '</td><td class="text-right py-2 text-gray-800">' + i.quantity + '</td><td class="text-right py-2 text-gray-800">$' + (i.price * i.quantity).toFixed(2) + '</td><td class="text-right py-2"><button onclick="removeFromCart(\'' + escapeHtml(i.item_number) + '\')" class="text-red-600 hover:text-red-800 text-xs font-bold px-2 py-1 rounded-full border border-red-200 hover:border-red-400 transition">Remove</button></td></tr>';
-            });
-            html += '</tbody></table>';
-            const { subtotal, shipping, tax, total } = getCartTotal();
-            html += '<div class="border-t-2 border-[#FFC439] pt-4 mt-4 space-y-1 text-sm"><div class="flex justify-between"><span class="text-gray-600">Subtotal</span><span class="text-gray-800">$' + subtotal.toFixed(2) + '</span></div><div class="flex justify-between"><span class="text-gray-600">Shipping</span><span class="text-gray-800">$' + shipping.toFixed(2) + '</span></div><div class="flex justify-between"><span class="text-gray-600">Tax (8.8%)</span><span class="text-gray-800">$' + tax.toFixed(2) + '</span></div><div class="flex justify-between font-bold text-lg border-t border-gray-200 pt-2"><span class="text-[#0070BA]">Total</span><span class="text-[#0070BA]">$' + total.toFixed(2) + '</span></div></div>';
-            html += '<div id="paypal-button-container" class="mt-4"></div>';
-            html += '<div class="mt-3 text-center"><img src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg" alt="PayPal" class="mx-auto h-8 opacity-80"></div>';
-            cartBody.innerHTML = html;
-            renderPayPalButton();
-        }
+function renderCart() {
+             const cart = getCart();
+             const savedLater = getSavedLater();
+             const cartBody = document.getElementById('cart-body');
+             if (!cart.length && !savedLater.length) {
+                 cartBody.innerHTML = '<p class="text-gray-400 text-center py-8">Your cart is empty</p>';
+                 return;
+             }
+             let html = '';
+             if (cart.length) {
+                 html += '<table class="w-full text-sm"><thead><tr class="border-b border-gray-200"><th class="text-left pb-2 text-[#0070BA]">Item</th><th class="text-right pb-2 text-[#0070BA]">Price</th><th class="text-right pb-2 text-[#0070BA]">Qty</th><th class="text-right pb-2 text-[#0070BA]">Subtotal</th><th class="text-right pb-2"></th></tr></thead><tbody>';
+                 cart.forEach(i => {
+                     html += '<tr class="border-t border-gray-100"><td class="py-2 truncate max-w-32 text-gray-800">' + escapeHtml(i.title) + '</td><td class="text-right py-2 text-gray-800">$' + i.price.toFixed(2) + '</td><td class="text-right py-2 text-gray-800"><button onclick="updateCartQuantity(\'' + escapeHtml(i.item_number) + '\',-1)" class="px-2 py-0.5 rounded border border-gray-300 hover:bg-gray-100 text-sm font-bold">−</button><span class="mx-2 font-medium">' + i.quantity + '</span><button onclick="updateCartQuantity(\'' + escapeHtml(i.item_number) + '\',1)" class="px-2 py-0.5 rounded border border-gray-300 hover:bg-gray-100 text-sm font-bold">+</button></td><td class="text-right py-2 text-gray-800">$' + (i.price * i.quantity).toFixed(2) + '</td><td class="text-right py-2"><button onclick="saveForLater(\'' + escapeHtml(i.item_number) + '\')" class="text-xs text-gray-400 hover:text-gray-600 transition">Save for Later</button></td></tr>';
+                 });
+                 html += '</tbody></table>';
+             }
+             if (savedLater.length) {
+                 html += '<div class="mt-6 pt-4 border-t border-gray-200"><h4 class="font-bold text-gray-700 mb-3">Saved for Later</h4><table class="w-full text-sm"><thead><tr class="border-b border-gray-200"><th class="text-left pb-2 text-gray-500">Item</th><th class="text-right pb-2 text-gray-500">Price</th><th class="text-right pb-2"></th></tr></thead><tbody>';
+                 savedLater.forEach(i => {
+                     html += '<tr class="border-t border-gray-100"><td class="py-2 truncate max-w-32 text-gray-600">' + escapeHtml(i.title) + '</td><td class="text-right py-2 text-gray-600">$' + i.price.toFixed(2) + '</td><td class="text-right py-2"><button onclick="moveToCart(\'' + escapeHtml(i.item_number) + '\')" class="text-xs text-red-600 hover:text-red-800 transition">Move to Cart</button></td></tr>';
+                 });
+                 html += '</tbody></table></div>';
+             }
+             if (cart.length) {
+                 const { subtotal, shipping, tax, total } = getCartTotal();
+                 html += '<div class="border-t-2 border-[#FFC439] pt-4 mt-4 space-y-1 text-sm"><div class="flex justify-between"><span class="text-gray-600">Subtotal</span><span class="text-gray-800">$' + subtotal.toFixed(2) + '</span></div><div class="flex justify-between"><span class="text-gray-600">Shipping</span><span class="text-gray-800">$' + shipping.toFixed(2) + '</span></div><div class="flex justify-between"><span class="text-gray-600">Tax (8.8%)</span><span class="text-gray-800">$' + tax.toFixed(2) + '</span></div><div class="flex justify-between font-bold text-lg border-t border-gray-200 pt-2"><span class="text-[#0070BA]">Total</span><span class="text-[#0070BA]">$' + total.toFixed(2) + '</span></div></div>';
+                 html += '<div id="paypal-button-container" class="mt-4"></div>';
+                 html += '<div class="mt-3 text-center"><img src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg" alt="PayPal" class="mx-auto h-8 opacity-80"></div>';
+             }
+             cartBody.innerHTML = html;
+             if (cart.length) renderPayPalButton();
+         }
 
         let _paypalConfig = null;
         let _paypalSdkLoading = null;
