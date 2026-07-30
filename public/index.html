@@ -123,7 +123,26 @@
                 </div>
             </div>
 
-            <div id="items-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div id="filter-bar" class="flex flex-wrap items-center gap-3 mb-6">
+                 <select id="filter-category" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
+                     <option value="">All Categories</option>
+                 </select>
+                 <select id="filter-condition" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
+                     <option value="">All Conditions</option>
+                 </select>
+                 <select id="filter-price" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
+                     <option value="">All Prices</option>
+                 </select>
+                 <select id="filter-sort" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
+                     <option value="newest">Newest First</option>
+                     <option value="price-asc">Price: Low to High</option>
+                     <option value="price-desc">Price: High to Low</option>
+                     <option value="title">Title: A → Z</option>
+                 </select>
+                 <button onclick="clearFilters()" class="px-4 py-2 rounded-full text-sm font-bold border border-gray-700 text-gray-400 hover:bg-gray-800 transition hidden" id="clear-filters-btn">Clear Filters</button>
+             </div>
+
+             <div id="items-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <div class="col-span-full flex flex-col items-center justify-center py-24">
                     <div class="w-12 h-12 border-4 border-gray-300 border-t-red-600 rounded-full animate-spin"></div>
                     <p class="text-gray-500 font-bold mt-4">Loading inventory...</p>
@@ -320,8 +339,12 @@
         let allItems = [];
         let soldItems = [];
         let currentPage = 1;
-        let currentView = 'all';
-        const itemsPerPage = 16;
+let currentView = 'all';
+         let filterCategory = '';
+         let filterCondition = '';
+         let filterPrice = '';
+         let filterSort = 'newest';
+         const itemsPerPage = 16;
 
         function toast(msg) {
             const el = document.createElement('div');
@@ -411,20 +434,35 @@
             }
         }
 
-        function getViewItems() {
-            const base = (allItems || []).filter(function(i) { return i.status !== 'Sold'; });
-            if (currentView === 'new') {
-                return base.slice().sort(function(a, b) {
-                    return String(b.date_listed || '').localeCompare(String(a.date_listed || ''));
-                });
-            }
-            if (currentView === 'featured') {
-                return base.filter(function(i) { return i.featured; }).sort(function(a, b) {
-                    return String(b.date_listed || '').localeCompare(String(a.date_listed || ''));
-                });
-            }
-            return base;
-        }
+function getViewItems() {
+             const base = (allItems || []).filter(function(i) { return i.status !== 'Sold'; });
+             let items = base;
+             if (filterCategory) {
+                 items = items.filter(function(i) { return (i.category || '').toLowerCase() === filterCategory.toLowerCase(); });
+             }
+             if (filterCondition) {
+                 items = items.filter(function(i) { return (i.condition || '').toLowerCase() === filterCondition.toLowerCase(); });
+             }
+             if (filterPrice) {
+                 const range = filterPrice.split('-');
+                 const min = parseFloat(range[0]) || 0;
+                 const max = range[1] ? parseFloat(range[1]) : Infinity;
+                 items = items.filter(function(i) { const p = parseFloat(i.price) || 0; return p >= min && p <= max; });
+             }
+             switch (filterSort) {
+                 case 'price-asc': items = items.slice().sort(function(a, b) { return (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0); }); break;
+                 case 'price-desc': items = items.slice().sort(function(a, b) { return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0); }); break;
+                 case 'title': items = items.slice().sort(function(a, b) { return (a.title || '').localeCompare(b.title || ''); }); break;
+                 default: items = items.slice().sort(function(a, b) { return String(b.date_listed || '').localeCompare(String(a.date_listed || '')); });
+             }
+             if (currentView === 'new') {
+                 return items;
+             }
+             if (currentView === 'featured') {
+                 return items.filter(function(i) { return i.featured; });
+             }
+             return items;
+         }
 
         function getFilteredItems() {
             const term = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
@@ -451,15 +489,93 @@
             });
         }
 
-        function showCurated(view) {
-            currentView = view || 'all';
-            currentPage = 1;
-            updateSegmentButtons();
-            renderItems(getFilteredItems());
-            renderSoldItems(soldItems || []);
-            const container = document.getElementById('items-container');
-            if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+function showCurated(view) {
+             currentView = view || 'all';
+             currentPage = 1;
+             filterCategory = '';
+             filterCondition = '';
+             filterPrice = '';
+             filterSort = 'newest';
+             const catEl = document.getElementById('filter-category');
+             const condEl = document.getElementById('filter-condition');
+             const priceEl = document.getElementById('filter-price');
+             const sortEl = document.getElementById('filter-sort');
+             if (catEl) catEl.value = '';
+             if (condEl) condEl.value = '';
+             if (priceEl) priceEl.value = '';
+             if (sortEl) sortEl.value = 'newest';
+             updateFilterBarVisibility();
+             updateSegmentButtons();
+             renderItems(getFilteredItems());
+             renderSoldItems(soldItems || []);
+             const container = document.getElementById('items-container');
+             if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+         }
+
+         function clearFilters() {
+             filterCategory = '';
+             filterCondition = '';
+             filterPrice = '';
+             filterSort = 'newest';
+             const catEl = document.getElementById('filter-category');
+             const condEl = document.getElementById('filter-condition');
+             const priceEl = document.getElementById('filter-price');
+             const sortEl = document.getElementById('filter-sort');
+             if (catEl) catEl.value = '';
+             if (condEl) condEl.value = '';
+             if (priceEl) priceEl.value = '';
+             if (sortEl) sortEl.value = 'newest';
+             currentPage = 1;
+             updateFilterBarVisibility();
+             renderItems(getFilteredItems());
+         }
+
+         function updateFilterBarVisibility() {
+             const btn = document.getElementById('clear-filters-btn');
+             if (!btn) return;
+             const hasFilters = filterCategory || filterCondition || filterPrice || filterSort !== 'newest';
+             btn.classList.toggle('hidden', !hasFilters);
+         }
+
+         function initFilterBar() {
+             const catEl = document.getElementById('filter-category');
+             const condEl = document.getElementById('filter-condition');
+             const priceEl = document.getElementById('filter-price');
+             const sortEl = document.getElementById('filter-sort');
+
+             if (catEl) catEl.addEventListener('change', function() { filterCategory = this.value; currentPage = 1; updateFilterBarVisibility(); renderItems(getFilteredItems()); });
+             if (condEl) condEl.addEventListener('change', function() { filterCondition = this.value; currentPage = 1; updateFilterBarVisibility(); renderItems(getFilteredItems()); });
+             if (priceEl) priceEl.addEventListener('change', function() { filterPrice = this.value; currentPage = 1; updateFilterBarVisibility(); renderItems(getFilteredItems()); });
+             if (sortEl) sortEl.addEventListener('change', function() { filterSort = this.value; currentPage = 1; updateFilterBarVisibility(); renderItems(getFilteredItems()); });
+         }
+
+         function populateFilterDropdowns() {
+             const catEl = document.getElementById('filter-category');
+             const condEl = document.getElementById('filter-condition');
+             const priceEl = document.getElementById('filter-price');
+             if (!catEl || !condEl || !priceEl) return;
+
+             const categories = {};
+             const conditions = {};
+             const priceRanges = {};
+             (allItems || []).forEach(function(i) {
+                 if (i.category) categories[i.category.toLowerCase()] = i.category;
+                 if (i.condition) conditions[i.condition.toLowerCase()] = i.condition;
+                 const p = parseFloat(i.price) || 0;
+                 let range;
+                 if (p < 25) range = 'Under $25';
+                 else if (p < 50) range = '$25 - $49.99';
+                 else if (p < 100) range = '$50 - $99.99';
+                 else if (p < 200) range = '$100 - $199.99';
+                 else range = '$200+';
+                 priceRanges[range] = range;
+             });
+
+             Object.keys(categories).sort().forEach(function(k) { catEl.innerHTML += '<option value="' + categories[k] + '">' + categories[k] + '</option>'; });
+             Object.keys(conditions).sort().forEach(function(k) { condEl.innerHTML += '<option value="' + conditions[k] + '">' + conditions[k] + '</option>'; });
+             const priceOrder = ['Under $25', '$25 - $49.99', '$50 - $99.99', '$100 - $199.99', '$200+'];
+             priceOrder.forEach(function(r) { if (priceRanges[r]) priceEl.innerHTML += '<option value="' + r + '">' + r + '</option>'; });
+         }
 
         function renderItems(items) {
             const container = document.getElementById('items-container');
@@ -763,9 +879,11 @@
                             '<div class="text-center"><button onclick="toggleCart()" class="mt-2 px-4 py-2 bg-[#0070BA] text-white rounded-full text-sm">Continue shopping</button></div>';
                         // Refresh inventory so purchased items come off the page promptly
                         fetchStoreData().then(function(d) {
-                            allItems = d.items || [];
-                            soldItems = d.soldItems || [];
-                            renderItems(getFilteredItems());
+allItems = d.items || [];
+                             soldItems = d.soldItems || [];
+                             populateFilterDropdowns();
+                             initFilterBar();
+                             renderItems(getFilteredItems());
                             renderSoldItems(soldItems);
                         }).catch(function() {});
                     },
@@ -1212,9 +1330,11 @@
                 updateCartCount();
                 currentPage = 1;
                 const data = await fetchStoreData();
-                allItems = data.items || [];
-                soldItems = data.soldItems || [];
-                updateSegmentButtons();
+allItems = data.items || [];
+                 soldItems = data.soldItems || [];
+                 populateFilterDropdowns();
+                 initFilterBar();
+                 updateSegmentButtons();
                 renderItems(getFilteredItems());
                 renderSoldItems(soldItems);
                 await loadReviews();
