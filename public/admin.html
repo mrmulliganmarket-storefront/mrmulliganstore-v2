@@ -799,6 +799,7 @@ async function openItemForm(itemNumber) {
         if (!item) return toast('Item not found');
     }
     window.editingItemNumber = isEdit ? itemNumber : null;
+    window._pendingPhotos = window._pendingPhotos || [];
     const num = isEdit ? itemNumber : 'ITM-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random()*9000)+1000);
     let vendors = [];
     try { vendors = await dbQuery('SELECT * FROM vendors ORDER BY name'); } catch(e) { console.warn('Vendors load failed', e); }
@@ -849,7 +850,7 @@ async function openItemForm(itemNumber) {
         '<label class="flex items-center gap-2 mt-1"><input type="checkbox" id="m-featured" ' + (isEdit && item && item.featured ? 'checked' : '') + ' class="w-4 h-4"> <span class="text-xs font-bold text-gray-600">Feature on storefront (Best Sellers)</span></label>' +
         '<div><label class="block text-xs font-bold text-gray-600 mb-1">Description</label><textarea id="m-desc" rows="2" class="w-full border rounded-xl p-2">' + (isEdit ? (item.description||'') : '') + '</textarea>' +
             '<button type="button" id="m-gen-desc" onclick="generateDescription()" class="mt-1 bg-gray-800 text-white px-3 py-1.5 rounded-xl font-bold text-sm hover:bg-gray-700">✨ Generate description</button></div>' +
-        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Photos</label><input type="file" id="m-photos" accept="image/*" multiple class="w-full border rounded p-2 text-sm"><div id="photo-previews" class="grid grid-cols-4 gap-2 mt-1">' + photoPreviews + '</div></div>' +
+        '<div><label class="block text-xs font-bold text-gray-600 mb-1">Photos</label><div id="photo-manager"><div id="photo-previews" class="grid grid-cols-4 gap-2 mt-1">' + photoPreviews + '</div><div class="flex gap-2 mt-2"><button type="button" onclick="addPhotoInput()" class="px-3 py-1.5 bg-gray-800 text-white rounded-xl text-xs font-bold hover:bg-gray-700">+ Add Photo</button><input type="file" id="m-photos" accept="image/*" multiple class="hidden" onchange="handlePhotoSelect(event)"></div></div></div>' +
         '<div class="flex gap-2 pt-1">' +
             '<button type="button" onclick="closeModal()" class="flex-1 border rounded p-2 hover:bg-gray-50">Cancel</button>' +
             '<button type="submit" class="flex-[2] bg-red-600 text-white rounded p-2 font-bold hover:bg-red-700">' + (isEdit ? 'Update Item' : 'Save Item') + '</button>' +
@@ -905,37 +906,35 @@ async function saveItem(e) {
     e.preventDefault();
     // Ensure the sale_type column exists (idempotent; ignore if already present).
     try { await dbQuery("ALTER TABLE items ADD COLUMN sale_type TEXT DEFAULT 'Shipped'"); } catch (e) { /* column likely exists */ }
-    const photosInput = document.getElementById('m-photos');
+const photosInput = document.getElementById('m-photos');
     const newPhotos = [];
+    const pendingPhotos = window._pendingPhotos || [];
     const isEdit = !!window.editingItemNumber;
     const oldNumber = window.editingItemNumber;
     const newNumber = document.getElementById('m-num').value.trim();
-    
+
     // Convert uploaded files to base64
     if (photosInput.files && photosInput.files.length > 0) {
         for (let i = 0; i < photosInput.files.length; i++) {
             const file = photosInput.files[i];
             if (file.type.startsWith('image/')) {
-                newPhotos.push(await toBase64(file));
+                pendingPhotos.push(await toBase64(file));
             }
         }
+        photosInput.value = '';
     }
-    
-// Get existing item if editing to preserve existing photos
-     let existingPhotos = [];
-     if (isEdit) {
-          const existing = (await dbQuery("SELECT photos FROM items WHERE item_number = ?", [oldNumber]))[0];
-         // Photos may come back as array or as JSON string from dbQuery
-         if (existing && existing.photos) {
-             if (Array.isArray(existing.photos)) {
-                 existingPhotos = existing.photos;
-             } else if (typeof existing.photos === 'string') {
-                 try { existingPhotos = JSON.parse(existing.photos); } catch(e) { existingPhotos = []; }
-             }
-         }
-     }
-    
-    const photos = newPhotos.length ? newPhotos : existingPhotos;
+
+    // Combine pending photos with existing photos for edit mode
+    let existingPhotos = [];
+    if (isEdit) {
+        const existing = (await dbQuery("SELECT photos FROM items WHERE item_number = ?", [oldNumber]))[0];
+        if (existing && existing.photos) {
+            if (Array.isArray(existing.photos)) { existingPhotos = existing.photos; }
+            else if (typeof existing.photos === 'string') { try { existingPhotos = JSON.parse(existing.photos); } catch(e) { existingPhotos = []; } }
+        }
+    }
+
+    const photos = pendingPhotos.length ? pendingPhotos : existingPhotos;
     console.log('Photos to save:', photos.length, 'items. isEdit:', isEdit);
     const item = {
         item_number: newNumber,
@@ -989,6 +988,7 @@ async function saveItem(e) {
         closeModal();
         toast(isEdit ? 'Item updated!' : 'Item saved!');
         showPage('inventory');
+        window._pendingPhotos = [];
     } catch(e) { toast('Save failed: ' + e.message); }
 }
 
@@ -999,6 +999,51 @@ function toBase64(file) {
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
+}
+
+let _photoIdx = 0;
+
+function addPhotoInput() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.id = 'm-photos-' + (++_photoIdx);
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.className = 'hidden';
+    input.onchange = function(ev) { handlePhotoSelect(ev); };
+    document.body.appendChild(input);
+    input.click();
+}
+
+function handlePhotoSelect(e) {
+    const files = e.target.files || (e.dataTransfer && e.dataTransfer.files);
+    if (!files) return;
+    const pending = window._pendingPhotos || (window._pendingPhotos = []);
+    Array.from(files).forEach(function(file) {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            pending.push(ev.target.result);
+            renderPhotoPreviews();
+        };
+        reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+}
+
+function renderPhotoPreviews() {
+    const preview = document.getElementById('photo-previews');
+    if (!preview) return;
+    const pending = window._pendingPhotos || [];
+    preview.innerHTML = pending.map(function(photo, idx) {
+        return '<div class="relative group"><img src="' + photo + '" class="w-16 h-16 object-cover rounded border"><button type="button" onclick="removePendingPhoto(' + idx + ')" class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition">×</button></div>';
+    }).join('');
+}
+
+function removePendingPhoto(idx) {
+    const pending = window._pendingPhotos || [];
+    pending.splice(idx, 1);
+    renderPhotoPreviews();
 }
 
 async function deleteItem(num) {
@@ -1436,19 +1481,7 @@ async function deleteExpense(expenseId) {
 }
 document.addEventListener('change', function(e) {
     if (e.target.id === 'm-photos') {
-        const preview = document.getElementById('photo-previews');
-        preview.innerHTML = '';
-        Array.from(e.target.files).slice(0,6).forEach(function(file) {
-            if (!file.type.startsWith('image/')) return;
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                const img = document.createElement('img');
-                img.src = ev.target.result;
-                img.className = 'w-16 h-16 object-cover rounded border';
-                preview.appendChild(img);
-            };
-            reader.readAsDataURL(file);
-        });
+        handlePhotoSelect(e);
     }
 });
 
