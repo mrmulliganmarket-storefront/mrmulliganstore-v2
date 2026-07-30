@@ -127,9 +127,13 @@
                  <select id="filter-category" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
                      <option value="">All Categories</option>
                  </select>
-                 <select id="filter-condition" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
-                     <option value="">All Conditions</option>
-                 </select>
+<select id="filter-condition" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
+                      <option value="">All Conditions</option>
+                      <option value="New (w/Tags)">New (w/Tags)</option>
+                      <option value="Excellent">Excellent</option>
+                      <option value="Good">Good</option>
+                      <option value="Fair">Fair</option>
+                  </select>
                  <select id="filter-price" class="border rounded-full px-4 py-2 text-sm bg-gray-900 text-white border-gray-700 focus:outline-none focus:border-red-600">
                      <option value="">All Prices</option>
                  </select>
@@ -440,9 +444,13 @@ function getViewItems() {
              if (filterCategory) {
                  items = items.filter(function(i) { return (i.category || '').toLowerCase() === filterCategory.toLowerCase(); });
              }
-             if (filterCondition) {
-                 items = items.filter(function(i) { return (i.condition || '').toLowerCase() === filterCondition.toLowerCase(); });
-             }
+if (filterCondition) {
+                  if (filterCondition === 'New (w/Tags)') {
+                      items = items.filter(function(i) { return (i.condition || '').toLowerCase() === 'new' && (i.tag_number || '').trim() !== ''; });
+                  } else {
+                      items = items.filter(function(i) { return (i.condition || '').toLowerCase() === filterCondition.toLowerCase(); });
+                  }
+              }
              if (filterPrice) {
                  const range = filterPrice.split('-');
                  const min = parseFloat(range[0]) || 0;
