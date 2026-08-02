@@ -657,7 +657,7 @@ function populateFilterDropdowns() {
                 const itemTitle = item.title || itemNum;
                 const soldOverlay = isSold ? '<div class="absolute inset-0 flex items-center justify-center"><span class="text-white font-anton text-3xl tracking-wider bg-red-600 px-8 py-3 rounded-full" style="transform: rotate(-45deg);">SOLD</span></div>' : '';
                 var inWishlist = (getSavedLater() || []).some(function(i) { return (i.item_number || '') === itemNum; });
-                var heartBtn = isSold ? '' : '<button onclick="event.stopPropagation(); toggleWishlist(event, \'' + itemNum + '\', \'' + (itemTitle || '').replace(/'/g, "\\'") + '\', ' + parseFloat(item.price || 0).toFixed(2) + ', \'' + imageApiUrl(itemNum) + '\', \'' + (item.condition || '').replace(/'/g, "\\'") + '\'); event.stopPropagation();" class="absolute top-2 right-2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow flex items-center justify-center transition z-10 ' + (inWishlist ? 'text-red-600' : 'text-gray-400') + '" data-item="' + itemNum + '">' +
+                var heartBtn = isSold ? '' : '<button onclick="event.stopPropagation(); toggleWishlist(this, \'' + itemNum + '\', \'' + (itemTitle || '').replace(/'/g, "\\'") + '\', ' + parseFloat(item.price || 0).toFixed(2) + ', \'' + imageApiUrl(itemNum) + '\', \'' + (item.condition || '').replace(/'/g, "\\'") + '\'); event.stopPropagation();" class="absolute top-2 right-2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow flex items-center justify-center transition z-10 ' + (inWishlist ? 'text-red-600' : 'text-gray-400') + '" data-item="' + itemNum + '">'
                     '<svg class="w-5 h-5" fill="' + (inWishlist ? 'currentColor' : 'none') + '" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21.35l-1.45-1.34C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>' +
                     '</button>';
                 const itemDiv = '<div class="bg-white rounded-xl shadow p-4 relative' + (isSold ? '' : ' hover:shadow-xl transition transform hover:-translate-y-1') + '"' + (isSold ? '' : ' onclick="event.stopPropagation(); showItem(\'' + itemNum + '\')"') + '>' +
@@ -1928,8 +1928,8 @@ allItems = d.items || [];
             }
         }
 
-        function toggleWishlist(e, itemNumber, title, price, photo, condition) {
-            var btn = e && e.currentTarget ? e.currentTarget : document.querySelector('[data-item="' + itemNumber + '"]');
+        function toggleWishlist(btn, itemNumber, title, price, photo, condition) {
+            btn = btn && btn.nodeType === 1 ? btn : (document.querySelector('[data-item="' + itemNumber + '"]') || (btn && btn.currentTarget) || null);
             var token = getAuthToken();
             var saved = getSavedLater();
             var existing = saved.find(function(i) { return (i.item_number || '') === itemNumber; });
