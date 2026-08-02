@@ -136,6 +136,17 @@
             localStorage.removeItem('mulliganCustomer');
         }
 
+        function getSavedLater() {
+            try {
+                var s = localStorage.getItem('mulliganSaved');
+                return s ? JSON.parse(s) : [];
+            } catch(e) { return []; }
+        }
+
+        function saveSavedLater(items) {
+            localStorage.setItem('mulliganSaved', JSON.stringify(items || []));
+        }
+
         function escapeHtml(s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
@@ -273,6 +284,9 @@
             var wishlist = (customer.wishlist || []).filter(function(i) { return (i.item_number || '') !== itemNumber; });
             customer.wishlist = wishlist;
             setCurrentCustomer(customer);
+            var saved = getSavedLater();
+            saved = saved.filter(function(i) { return (i.item_number || '') !== itemNumber; });
+            saveSavedLater(saved);
             if (token) {
                 fetch('/api/customer/wishlist', {
                     method: 'POST',
