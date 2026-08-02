@@ -50,6 +50,13 @@ function jsonResponse(status, obj, extra) {
   return new Response(JSON.stringify(obj), { status, headers });
 }
 __name(jsonResponse, "jsonResponse");
+function errMsg(err) {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) return String(err.message);
+  if (typeof err === "string") return err;
+  return JSON.stringify(err);
+}
+__name(errMsg, "errMsg");
 var SESSION_TTL_MS = 1e3 * 60 * 60 * 12;
 function sessionSecret() {
   return ENV.SESSION_SECRET || ENV.ADMIN_PASS || "insecure-dev-secret";
@@ -77,6 +84,56 @@ async function hmacSign(message) {
   return b64urlEncode(String.fromCharCode(...new Uint8Array(sig)));
 }
 __name(hmacSign, "hmacSign");
+const PBKDF2_ITERATIONS = 1e5;
+
+async function hashPassword(password) {
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+  const derived = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: saltBytes, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    key,
+    256
+  );
+  const saltStr = b64urlEncode(String.fromCharCode(...saltBytes));
+  const hashStr = b64urlEncode(String.fromCharCode(...new Uint8Array(derived)));
+  return PBKDF2_ITERATIONS + ":" + saltStr + ":" + hashStr;
+}
+
+async function verifyPassword(password, stored) {
+  if (!stored || typeof stored !== "string") return false;
+  const parts = stored.split(":");
+  if (parts.length !== 3) return false;
+  const iterations = parseInt(parts[0]) || PBKDF2_ITERATIONS;
+  const salt = b64urlDecode(parts[1]);
+  const expectedHash = parts[2];
+  try {
+    const saltBytes = new Uint8Array(salt.length);
+    for (let i = 0; i < salt.length; i++) saltBytes[i] = salt.charCodeAt(i);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits"]
+    );
+    const derived = await crypto.subtle.deriveBits(
+      { name: "PBKDF2", salt: saltBytes, iterations, hash: "SHA-256" },
+      key,
+      256
+    );
+    const hashStr = b64urlEncode(String.fromCharCode(...new Uint8Array(derived)));
+    return timingSafeEqual(hashStr, expectedHash);
+  } catch {
+    return false;
+  }
+}
+
 function timingSafeEqual(a, b) {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -84,15 +141,15 @@ function timingSafeEqual(a, b) {
   return diff === 0;
 }
 __name(timingSafeEqual, "timingSafeEqual");
-async function createSession() {
+async function createSession(type) {
   const iat = Date.now();
   const exp = iat + SESSION_TTL_MS;
-  const payload = b64urlEncode(JSON.stringify({ iat, exp }));
+  const payload = b64urlEncode(JSON.stringify({ iat, exp, type: type || "admin" }));
   const sig = await hmacSign(payload);
   return payload + "." + sig;
 }
 __name(createSession, "createSession");
-async function verifySession(header) {
+async function verifySession(header, expectedType) {
   if (!header || !header.startsWith("Bearer ")) return false;
   const token = header.slice(7);
   const parts = token.split(".");
@@ -103,16 +160,41 @@ async function verifySession(header) {
   try {
     const data = JSON.parse(b64urlDecode(payload));
     if (!data.exp || data.exp < Date.now()) return false;
+    if (expectedType && data.type !== expectedType) {
+      if (!(expectedType === "admin" && data.type === undefined)) return false;
+    }
     return true;
   } catch (e) {
     return false;
   }
 }
 __name(verifySession, "verifySession");
-function isValidSession(header) {
-  return verifySession(header);
+function isValidSession(header, expectedType) {
+  return verifySession(header, expectedType);
 }
 __name(isValidSession, "isValidSession");
+var _customersTablePromise = null;
+function ensureCustomersTable() {
+  if (_customersTablePromise) return _customersTablePromise;
+  _customersTablePromise = tursoExecute(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT,
+      shipping_address TEXT,
+      wishlist TEXT,
+      cart TEXT,
+      created_at TEXT,
+      updated_at TEXT
+    )
+  `).catch((e) => {
+    _customersTablePromise = null;
+    throw e;
+  });
+  return _customersTablePromise;
+}
+__name(ensureCustomersTable, "ensureCustomersTable");
 var LOGIN_ATTEMPTS = /* @__PURE__ */ new Map();
 var LOGIN_MAX_ATTEMPTS = 5;
 var LOGIN_WINDOW_MS = 1e3 * 60 * 10;
@@ -171,7 +253,11 @@ async function tursoPipeline(statements) {
           return;
         }
         try {
-          obj[col.name] = JSON.parse(cell.value);
+          if (typeof cell.value === "string") {
+            obj[col.name] = JSON.parse(cell.value);
+          } else {
+            obj[col.name] = cell.value;
+          }
         } catch (e) {
           obj[col.name] = cell.value;
         }
@@ -191,7 +277,7 @@ function cachedJson(key, ttlMs, builder) {
   return builder().then((data) => {
     _apiCache.set(key, { ts: Date.now(), data });
     return jsonResponse(200, data);
-  }).catch((err) => hit ? jsonResponse(200, hit.data) : jsonResponse(500, { error: err.message }));
+  }).catch((err) => hit ? jsonResponse(200, hit.data) : jsonResponse(500, { error: errMsg(err) }));
 }
 __name(cachedJson, "cachedJson");
 async function buildDashboard() {
@@ -439,7 +525,137 @@ var worker_default = {
         }
         return jsonResponse(401, { ok: false, error: "Invalid credentials" }, { __reqOrigin: reqOrigin });
       } catch (err) {
-        return jsonResponse(500, { ok: false, error: err.message }, { __reqOrigin: reqOrigin });
+        return jsonResponse(500, { ok: false, error: errMsg(err) }, { __reqOrigin: reqOrigin });
+      }
+    }
+    if (request.method === "POST" && path === "/api/auth/register") {
+      try {
+        await ensureCustomersTable();
+        const body = await readJson(request);
+        const email = String(body.email || "").trim().toLowerCase();
+        const name = String(body.name || "").trim();
+        const password = String(body.password || "");
+
+        if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+          return jsonResponse(400, { ok: false, error: "Please enter a valid email address" });
+        if (!password || password.length < 8)
+          return jsonResponse(400, { ok: false, error: "Password must be at least 8 characters" });
+
+        const passwordHash = await hashPassword(password);
+        try {
+          await tursoExecute(
+            "INSERT INTO customers (email, password_hash, name, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))",
+            [email, passwordHash, name || email.split("@")[0]]
+          );
+        } catch (insertErr) {
+          if (errMsg(insertErr).includes("UNIQUE"))
+            return jsonResponse(409, { ok: false, error: "An account with that email already exists" });
+          throw insertErr;
+        }
+
+        const r = await tursoPipeline([{
+          sql: "SELECT id, email, name, shipping_address, wishlist FROM customers WHERE email = ?",
+          args: [email]
+        }]);
+        const row = r[0]?.[0];
+        const token = await createSession("customer");
+        const tokenPayload = JSON.parse(b64urlDecode(token.split(".")[0]));
+        tokenPayload.cid = row.id;
+        const newToken = b64urlEncode(JSON.stringify(tokenPayload)) + "." + await hmacSign(b64urlEncode(JSON.stringify(tokenPayload)));
+
+        return jsonResponse(200, {
+          ok: true,
+          token: newToken,
+          expiresIn: SESSION_TTL_MS,
+          customer: {
+            id: row.id,
+            email: row.email,
+            name: row.name,
+            shipping_address: row.shipping_address,
+            wishlist: typeof row.wishlist === "string" ? JSON.parse(row.wishlist) : (row.wishlist || [])
+          }
+        });
+      } catch (err) {
+        return jsonResponse(500, { ok: false, error: errMsg(err) });
+      }
+    }
+    if (request.method === "POST" && path === "/api/auth/login") {
+      try {
+        await ensureCustomersTable();
+        const body = await readJson(request);
+        const email = String(body.email || "").trim().toLowerCase();
+        const password = String(body.password || "");
+
+        if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+          return jsonResponse(400, { ok: false, error: "Please enter a valid email address" });
+
+        const r = await tursoPipeline([{
+          sql: "SELECT id, email, password_hash, name, shipping_address, wishlist FROM customers WHERE email = ?",
+          args: [email]
+        }]);
+        const row = r[0]?.[0];
+        if (!row) return jsonResponse(401, { ok: false, error: "Invalid email or password" });
+
+        const valid = await verifyPassword(password, row.password_hash);
+        if (!valid) return jsonResponse(401, { ok: false, error: "Invalid email or password" });
+
+        const token = await createSession("customer");
+        const tokenPayload = JSON.parse(b64urlDecode(token.split(".")[0]));
+        tokenPayload.cid = row.id;
+        const newToken = b64urlEncode(JSON.stringify(tokenPayload)) + "." + await hmacSign(b64urlEncode(JSON.stringify(tokenPayload)));
+
+        return jsonResponse(200, {
+          ok: true,
+          token: newToken,
+          expiresIn: SESSION_TTL_MS,
+          customer: {
+            id: row.id,
+            email: row.email,
+            name: row.name,
+            shipping_address: row.shipping_address,
+            wishlist: typeof row.wishlist === "string" ? JSON.parse(row.wishlist) : (row.wishlist || [])
+          }
+        });
+      } catch (err) {
+        return jsonResponse(500, { ok: false, error: errMsg(err) });
+      }
+    }
+    if (request.method === "POST" && path === "/api/auth/logout") {
+      return jsonResponse(200, { ok: true });
+    }
+    if (request.method === "GET" && path === "/api/auth/me") {
+      const auth = request.headers.get("Authorization") || "";
+      if (!await verifySession(auth, "customer"))
+        return jsonResponse(401, { error: "Unauthorized" });
+      try {
+        await ensureCustomersTable();
+        const payload = b64urlDecode(auth.replace(/^Bearer /, "").split(".")[0]);
+        const data = JSON.parse(payload);
+        const cid = data.cid;
+        if (!cid) return jsonResponse(401, { error: "Invalid session" });
+
+        const r = await tursoPipeline([{
+          sql: "SELECT id, email, name, shipping_address, wishlist FROM customers WHERE id = ?",
+          args: [cid]
+        }]);
+        const row = r[0]?.[0];
+        if (!row) return jsonResponse(401, { error: "Account not found" });
+
+        let wishlist = [];
+        try { wishlist = typeof row.wishlist === "string" ? JSON.parse(row.wishlist) : (row.wishlist || []); } catch { wishlist = []; }
+
+        return jsonResponse(200, {
+          ok: true,
+          customer: {
+            id: row.id,
+            email: row.email,
+            name: row.name,
+            shipping_address: row.shipping_address,
+            wishlist
+          }
+        });
+      } catch (err) {
+        return jsonResponse(500, { error: errMsg(err) });
       }
     }
     if (request.method === "GET" && path === "/api/admin/login-page") {
@@ -485,7 +701,7 @@ var worker_default = {
         let photos = [];
         if (photoCell && photoCell.value) {
           try {
-            photos = JSON.parse(photoCell.value);
+            photos = typeof photoCell.value === "string" ? JSON.parse(photoCell.value) : photoCell.value;
           } catch {
           }
         }
@@ -575,7 +791,7 @@ var worker_default = {
         if (text.length > 400) text = text.slice(0, 400).trim().replace(/[.,;:]+$/, "") + ".";
         return jsonResponse(200, { description: text });
       } catch (err) {
-        return jsonResponse(502, { description: "", error: err.message });
+        return jsonResponse(502, { description: "", error: errMsg(err) });
       }
     }
     if (request.method === "POST" && path === "/api/visit") {
@@ -626,7 +842,128 @@ var worker_default = {
         const data = await tursoRequest(payload);
         return jsonResponse(200, data);
       } catch (err) {
-        return jsonResponse(500, { error: err.message });
+        return jsonResponse(500, { error: errMsg(err) });
+      }
+    }
+    if (request.method === "POST" && path === "/api/customer/wishlist") {
+      const auth = request.headers.get("Authorization") || "";
+      if (!await verifySession(auth, "customer")) return jsonResponse(401, { error: "Unauthorized" });
+      try {
+        await ensureCustomersTable();
+        const payload = b64urlDecode(auth.replace(/^Bearer /, "").split(".")[0]);
+        const data = JSON.parse(payload);
+        const cid = data.cid;
+        if (!cid) return jsonResponse(401, { error: "Invalid session" });
+        const body = await readJson(request);
+        const wishlist = JSON.stringify(Array.isArray(body.wishlist) ? body.wishlist : []);
+        await tursoExecute("UPDATE customers SET wishlist = ?, updated_at = datetime('now') WHERE id = ?", [wishlist, cid]);
+        return jsonResponse(200, { ok: true });
+      } catch (err) {
+        return jsonResponse(500, { error: errMsg(err) });
+      }
+    }
+    if (request.method === "GET" && path === "/api/customer/wishlist") {
+      const auth = request.headers.get("Authorization") || "";
+      if (!await verifySession(auth, "customer")) return jsonResponse(401, { error: "Unauthorized" });
+      try {
+        await ensureCustomersTable();
+        const payload = b64urlDecode(auth.replace(/^Bearer /, "").split(".")[0]);
+        const data = JSON.parse(payload);
+        const cid = data.cid;
+        if (!cid) return jsonResponse(401, { error: "Invalid session" });
+        const r = await tursoPipeline([{ sql: "SELECT wishlist FROM customers WHERE id = ?", args: [cid] }]);
+        const row = r[0]?.[0];
+        let wishlist = [];
+        try { wishlist = typeof row?.wishlist === "string" ? JSON.parse(row.wishlist) : (row?.wishlist || []); } catch { wishlist = []; }
+        return jsonResponse(200, { wishlist });
+      } catch (err) {
+        return jsonResponse(500, { error: errMsg(err) });
+      }
+    }
+    if (request.method === "GET" && path === "/api/customer/orders") {
+      const auth = request.headers.get("Authorization") || "";
+      if (!await verifySession(auth, "customer")) return jsonResponse(401, { error: "Unauthorized" });
+      try {
+        await ensureCustomersTable();
+        const payload = b64urlDecode(auth.replace(/^Bearer /, "").split(".")[0]);
+        const data = JSON.parse(payload);
+        const cid = data.cid;
+        if (!cid) return jsonResponse(401, { error: "Invalid session" });
+        const customerRows = await tursoPipeline([{ sql: "SELECT email FROM customers WHERE id = ?", args: [cid] }]);
+        const customerRow = customerRows[0]?.[0];
+        if (!customerRow) return jsonResponse(401, { error: "Account not found" });
+        const customerEmail = customerRow.email;
+        const orders = await tursoPipeline([{
+          sql: "SELECT id, item_number, total, status, data, created_at FROM orders WHERE json_extract(data, '$.customer_email') = ? ORDER BY created_at DESC",
+          args: [customerEmail]
+        }]);
+        return jsonResponse(200, { orders: orders[0] });
+      } catch (err) {
+        return jsonResponse(500, { error: errMsg(err) });
+      }
+    }
+    if (request.method === "GET" && path === "/api/customer/cart") {
+      const auth = request.headers.get("Authorization") || "";
+      if (!await verifySession(auth, "customer")) return jsonResponse(401, { error: "Unauthorized" });
+      try {
+        await ensureCustomersTable();
+        const payload = b64urlDecode(auth.replace(/^Bearer /, "").split(".")[0]);
+        const data = JSON.parse(payload);
+        const cid = data.cid;
+        if (!cid) return jsonResponse(401, { error: "Invalid session" });
+        const r = await tursoPipeline([{ sql: "SELECT cart FROM customers WHERE id = ?", args: [cid] }]);
+        const row = r[0]?.[0];
+        let cart = [];
+        try { cart = typeof row?.cart === "string" ? JSON.parse(row.cart) : (row?.cart || []); } catch { cart = []; }
+        return jsonResponse(200, { cart });
+      } catch (err) {
+        return jsonResponse(500, { error: errMsg(err) });
+      }
+    }
+    if (request.method === "POST" && path === "/api/customer/cart") {
+      const auth = request.headers.get("Authorization") || "";
+      if (!await verifySession(auth, "customer")) return jsonResponse(401, { error: "Unauthorized" });
+      try {
+        await ensureCustomersTable();
+        const payload = b64urlDecode(auth.replace(/^Bearer /, "").split(".")[0]);
+        const data = JSON.parse(payload);
+        const cid = data.cid;
+        if (!cid) return jsonResponse(401, { error: "Invalid session" });
+        const body = await readJson(request);
+        const cart = JSON.stringify(Array.isArray(body.cart) ? body.cart : []);
+        await tursoExecute("UPDATE customers SET cart = ?, updated_at = datetime('now') WHERE id = ?", [cart, cid]);
+        return jsonResponse(200, { ok: true });
+      } catch (err) {
+        return jsonResponse(500, { error: errMsg(err) });
+      }
+    }
+    if (request.method === "POST" && path === "/api/customer/profile") {
+      const auth = request.headers.get("Authorization") || "";
+      if (!await verifySession(auth, "customer")) return jsonResponse(401, { error: "Unauthorized" });
+      try {
+        await ensureCustomersTable();
+        const payload = b64urlDecode(auth.replace(/^Bearer /, "").split(".")[0]);
+        const data = JSON.parse(payload);
+        const cid = data.cid;
+        if (!cid) return jsonResponse(401, { error: "Invalid session" });
+        const body = await readJson(request);
+        const name = String(body.name || "").trim().slice(0, 200);
+        const shippingAddress = String(body.shipping_address || "").trim().slice(0, 500);
+        await tursoExecute(
+          "UPDATE customers SET name = ?, shipping_address = ?, updated_at = datetime('now') WHERE id = ?",
+          [name, shippingAddress, cid]
+        );
+        const r = await tursoPipeline([{ sql: "SELECT id, email, name, shipping_address, wishlist FROM customers WHERE id = ?", args: [cid] }]);
+        const row = r[0]?.[0];
+        if (!row) return jsonResponse(401, { error: "Account not found" });
+        let wishlist = [];
+        try { wishlist = typeof row.wishlist === "string" ? JSON.parse(row.wishlist) : (row.wishlist || []); } catch { wishlist = []; }
+        return jsonResponse(200, {
+          ok: true,
+          customer: { id: row.id, email: row.email, name: row.name, shipping_address: row.shipping_address, wishlist }
+        });
+      } catch (err) {
+        return jsonResponse(500, { error: errMsg(err) });
       }
     }
     if (request.method === "POST" && path === "/api/paypal/create-order") {
@@ -643,7 +980,7 @@ var worker_default = {
         const data = await resPay.json();
         return jsonResponse(resPay.status, data);
       } catch (err) {
-        return jsonResponse(500, { error: err.message });
+        return jsonResponse(500, { error: errMsg(err) });
       }
     }
     if (request.method === "POST" && path.startsWith("/api/paypal/capture-order")) {
@@ -715,7 +1052,7 @@ var worker_default = {
         }
         return jsonResponse(resPay.status, data);
       } catch (err) {
-        return jsonResponse(500, { error: err.message });
+        return jsonResponse(500, { error: errMsg(err) });
       }
     }
     if (request.method === "POST" && path === "/api/notify/order-status") {
@@ -733,7 +1070,7 @@ var worker_default = {
         });
         return jsonResponse(200, result);
       } catch (err) {
-        return jsonResponse(500, { error: err.message });
+        return jsonResponse(500, { error: errMsg(err) });
       }
     }
     if (request.method === "GET" && path === "/api/orders/by-email") {
@@ -743,7 +1080,7 @@ var worker_default = {
         const r = await tursoPipeline([{ sql: "SELECT id, item_number, total, status, data, created_at FROM orders WHERE json_extract(data, '$.customer_email') = ? ORDER BY created_at DESC", args: [email] }]);
         return jsonResponse(200, { orders: r[0] });
       } catch (err) {
-        return jsonResponse(500, { error: err.message });
+        return jsonResponse(500, { error: errMsg(err) });
       }
     }
     if (request.method === "POST" && path === "/api/subscribe") {
@@ -758,7 +1095,7 @@ var worker_default = {
         }));
         return jsonResponse(200, { ok: true });
       } catch (err) {
-        return jsonResponse(500, { ok: false, error: err.message });
+        return jsonResponse(500, { ok: false, error: errMsg(err) });
       }
     }
     if (request.method === "POST" && path === "/api/contact") {
@@ -784,7 +1121,7 @@ var worker_default = {
         }
         return jsonResponse(200, { ok: true });
       } catch (err) {
-        return jsonResponse(500, { ok: false, error: err.message });
+        return jsonResponse(500, { ok: false, error: errMsg(err) });
       }
     }
     if (request.method === "POST" && path === "/api/reviews") {
@@ -802,7 +1139,7 @@ var worker_default = {
         await tursoExecute("INSERT INTO reviews (item_number, customer_name, rating, comment, platform, status, created_at) VALUES (?, ?, ?, ?, NULL, 'Pending', datetime('now'))", [item_number, customer_name, rating, comment]);
         return jsonResponse(200, { ok: true });
       } catch (err) {
-        return jsonResponse(500, { ok: false, error: err.message });
+        return jsonResponse(500, { ok: false, error: errMsg(err) });
       }
     }
     const assetResp = await env.ASSETS.fetch(request);

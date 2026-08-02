@@ -1,10 +1,8 @@
-# Secrets / environment
+.wrangler/
+node_modules/
+.DS_Store
+*.log
 .env
 
-# Dependencies
-node_modules/
-
-# OS / editor cruft
-.DS_Store
-Thumbs.db
-*.log
+# Keep deploy artifacts out of git
+.wrangler/tmp/
