@@ -1508,7 +1508,13 @@ allItems = d.items || [];
                 var res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
                 if (!res.ok) { clearAuthToken(); clearCurrentCustomer(); return false; }
                 var data = await res.json();
-                if (data.customer) { setCurrentCustomer(data.customer); return true; }
+                if (data.customer) {
+                    setCurrentCustomer(data.customer);
+                    if (data.customer.wishlist && Array.isArray(data.customer.wishlist)) {
+                        saveSavedLater(data.customer.wishlist);
+                    }
+                    return true;
+                }
                 return false;
             } catch (e) { return false; }
         }
@@ -1982,7 +1988,7 @@ allItems = d.items || [];
             try {
                 updateCartCount();
                 updateAccountButton();
-                verifySession();
+                await verifySession();
                 currentPage = 1;
                 const data = await fetchStoreData();
 allItems = data.items || [];
