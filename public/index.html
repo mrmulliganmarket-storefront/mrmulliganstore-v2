@@ -304,7 +304,7 @@
                     <div class="p-5 flex flex-col relative">
                         <button onclick="closeItemModal()" class="absolute top-2 right-3 text-gray-400 hover:text-white p-1 text-2xl leading-none">&times;</button>
                         <button id="modal-wishlist-btn" onclick="toggleWishlistFromModal()" class="absolute top-2 right-12 text-gray-400 p-1 transition z-10" title="Add to wishlist">
-                            <svg id="modal-wishlist-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21.35l-1.45-1.34C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+                            <svg id="modal-wishlist-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.34C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
                         </button>
                         <div class="flex-1">
                             <p id="modal-category" class="text-red-500 text-xs font-bold tracking-widest uppercase mb-1"></p>
@@ -658,7 +658,7 @@ function populateFilterDropdowns() {
                 const soldOverlay = isSold ? '<div class="absolute inset-0 flex items-center justify-center"><span class="text-white font-anton text-3xl tracking-wider bg-red-600 px-8 py-3 rounded-full" style="transform: rotate(-45deg);">SOLD</span></div>' : '';
                 var inWishlist = (getSavedLater() || []).some(function(i) { return (i.item_number || '') === itemNum; });
                 var heartBtn = isSold ? '' : '<button onclick="event.stopPropagation(); toggleWishlist(this, \'' + itemNum + '\', \'' + (itemTitle || '').replace(/'/g, "\\'") + '\', ' + parseFloat(item.price || 0).toFixed(2) + ', \'' + imageApiUrl(itemNum) + '\', \'' + (item.condition || '').replace(/'/g, "\\'") + '\'); event.stopPropagation();" class="absolute top-2 right-2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow flex items-center justify-center transition z-10 ' + (inWishlist ? 'text-red-600' : 'text-gray-400') + '" data-item="' + itemNum + '">'
-                    '<svg class="w-5 h-5" fill="' + (inWishlist ? 'currentColor' : 'none') + '" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21.35l-1.45-1.34C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>' +
+                    '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.34C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>' +
                     '</button>';
                 const itemDiv = '<div class="bg-white rounded-xl shadow p-4 relative' + (isSold ? '' : ' hover:shadow-xl transition transform hover:-translate-y-1') + '"' + (isSold ? '' : ' onclick="event.stopPropagation(); showItem(\'' + itemNum + '\')"') + '>' +
                     '<div class="aspect-square bg-gray-200 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">' +
@@ -1126,7 +1126,7 @@ allItems = d.items || [];
                 var wishlistIcon = document.getElementById('modal-wishlist-icon');
                 if (wishlistBtn && wishlistIcon) {
                     var inWish = (getSavedLater() || []).some(function(i) { return (i.item_number || '') === itemNumber; });
-                    wishlistIcon.setAttribute('fill', inWish ? 'currentColor' : 'none');
+                    wishlistIcon.setAttribute('fill', 'currentColor');
                     wishlistBtn.className = 'absolute top-2 right-12 p-1 transition z-10 ' + (inWish ? 'text-red-600' : 'text-gray-400');
                 }
 
@@ -1906,7 +1906,7 @@ allItems = d.items || [];
                 cardBtn.classList.remove('text-red-600');
                 cardBtn.classList.add('text-gray-400');
                 var cardSvg = cardBtn.querySelector('svg');
-                if (cardSvg) cardSvg.setAttribute('fill', 'none');
+                    if (cardSvg) cardSvg.setAttribute('fill', 'currentColor');
             }
             var m = document.getElementById('wishlist-modal');
             if (m) {
@@ -1963,7 +1963,7 @@ allItems = d.items || [];
                 }
                 var svg = btn.querySelector('svg');
                 if (svg) {
-                    svg.setAttribute('fill', inWish ? 'currentColor' : 'none');
+                    svg.setAttribute('fill', 'currentColor');
                 }
             }
         }
@@ -1977,7 +1977,7 @@ allItems = d.items || [];
                 var wishlistIcon = document.getElementById('modal-wishlist-icon');
                 if (wishlistBtn && wishlistIcon) {
                     var inWish = (getSavedLater() || []).some(function(i) { return (i.item_number || '') === item.item_number; });
-                    wishlistIcon.setAttribute('fill', inWish ? 'currentColor' : 'none');
+                    wishlistIcon.setAttribute('fill', 'currentColor');
                     wishlistBtn.className = 'absolute top-2 right-12 p-1 transition z-10 ' + (inWish ? 'text-red-600' : 'text-gray-400');
                 }
             }, 100);
