@@ -88,9 +88,7 @@
     <header class="bg-black text-white shadow-lg">
     <div class="container mx-auto px-4 py-4 flex justify-between items-center">
         <h1 class="font-anton text-5xl">MULLIGAN<span class="text-red-600">MARKET</span></h1>
-        <div class="flex items-center gap-4">
-            <span class="text-xs text-gray-400 hidden md:inline">Upgrade Your Game.</span>
-            <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
                 <div id="account-btn-wrapper" style="position: relative;">
                     <button id="account-btn" onclick="toggleAccount()" class="relative text-gray-800 hover:text-black bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-200">
                         <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="9" r="3" fill="none"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 19c0-3 4-5 8-5s8 2 8 5v1a1 1 0 01-1 1H5a1 1 0 01-1-1v-1z"></path></svg>
@@ -1896,6 +1894,13 @@ allItems = d.items || [];
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                     body: JSON.stringify({ wishlist: saved })
                 }).catch(function() {});
+            }
+            var cardBtn = document.querySelector('[data-item="' + itemNumber + '"]');
+            if (cardBtn) {
+                cardBtn.classList.remove('text-red-600');
+                cardBtn.classList.add('text-gray-400');
+                var cardSvg = cardBtn.querySelector('svg');
+                if (cardSvg) cardSvg.setAttribute('fill', 'none');
             }
             var m = document.getElementById('wishlist-modal');
             if (m) {
